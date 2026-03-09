@@ -35,3 +35,6 @@ build/
 target/
 *.class
 application.properties
+
+.DS_Store
+**/.DS_Store
