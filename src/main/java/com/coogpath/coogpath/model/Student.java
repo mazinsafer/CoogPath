@@ -54,7 +54,7 @@ public class Student
     private Integer maxCreditsSpring = 15;
 
     @Column(name = "max_credits_summer", nullable=false)
-    private Integer maxCredtisSummer = 6;
+    private Integer maxCreditsSummer = 6;
 
     @Column(name = "include_summer", nullable=false)
     private boolean includeSummer = false;

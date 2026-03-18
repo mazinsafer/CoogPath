@@ -14,9 +14,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@Data
 @Entity
 @Table(name="requisite_rule")
-@Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequisiteRule 
@@ -24,7 +24,7 @@ public class RequisiteRule
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @Column(name = "rule_id")
-    private Long rule_id;
+    private Long ruleId;
 
     @ManyToOne
     @JoinColumn(name= "course_id", nullable=false, comment="the course that HAS this prereq")
@@ -32,7 +32,7 @@ public class RequisiteRule
 
     @ManyToOne
     @JoinColumn(name = "root_course_node")
-    private RequisiteNode node;
+    private RequisiteNode rootNode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
