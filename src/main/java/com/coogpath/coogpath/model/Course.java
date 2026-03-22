@@ -22,7 +22,7 @@ public class Course
     private String subject;
 
     @Column(nullable= false, length = 15)
-    private Integer number;
+    private String number;
     
     @Column(nullable = false, length = 100)
     private String title;
@@ -35,7 +35,7 @@ public class Course
 
     }
 
-    public Course(Long courseId, String subject, Integer number, String title, Integer credits)
+    public Course(Long courseId, String subject, String number, String title, Integer credits)
     {
         this.courseId = courseId;
         this.subject = subject;
@@ -64,12 +64,12 @@ public class Course
         this.subject = subject;
     }
 
-    public Integer getNumber()
+    public String getNumber()
     {
         return this.number;
     }
 
-    public void setNumber(Integer number)
+    public void setNumber(String number)
     {
         this.number = number;
     }

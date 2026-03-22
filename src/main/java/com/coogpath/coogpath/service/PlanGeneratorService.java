@@ -14,17 +14,26 @@ import org.springframework.stereotype.Service;
 import com.coogpath.coogpath.dto.PlanResult;
 import com.coogpath.coogpath.dto.PlannedTerm;
 import com.coogpath.coogpath.model.Course;
+import com.coogpath.coogpath.model.CourseSetCourse;
 import com.coogpath.coogpath.model.RequirementGroup;
 import com.coogpath.coogpath.model.RequirementItem;
 import com.coogpath.coogpath.model.RequisiteNode;
 import com.coogpath.coogpath.model.RequisiteRule;
+import com.coogpath.coogpath.model.RoadmapSemester;
+import com.coogpath.coogpath.model.RoadmapSemesterCourse;
+import com.coogpath.coogpath.model.RoadmapSnapshot;
 import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.model.StudentCourse;
 import com.coogpath.coogpath.model.Term;
+import com.coogpath.coogpath.repository.CourseRepository;
+import com.coogpath.coogpath.repository.CourseSetCourseRepository;
 import com.coogpath.coogpath.repository.RequirementGroupRepository;
 import com.coogpath.coogpath.repository.RequirementItemRepository;
 import com.coogpath.coogpath.repository.RequisiteNodeRepository;
 import com.coogpath.coogpath.repository.RequisiteRuleRepository;
+import com.coogpath.coogpath.repository.RoadmapSemesterCourseRepository;
+import com.coogpath.coogpath.repository.RoadmapSemesterRepository;
+import com.coogpath.coogpath.repository.RoadmapSnapshotRepository;
 import com.coogpath.coogpath.repository.StudentCourseRepository;
 import com.coogpath.coogpath.repository.StudentRepository;
 
@@ -42,6 +51,12 @@ public class PlanGeneratorService
     private final RequisiteNodeRepository requisiteNodeRepository;
     private final RequisiteRuleRepository requisiteRuleRepository;
     private final RequirementGroupRepository requirementGroupRepository;
+
+    private final CourseRepository courseRepository;
+    private final RoadmapSnapshotRepository snapshotRepository;
+    private final RoadmapSemesterRepository semesterRepository;
+    private final RoadmapSemesterCourseRepository semesterCourseRepository;
+    private final CourseSetCourseRepository courseSetCourseRepository;
 
     public PlanResult generatePlan(Long studentId) 
     {
@@ -166,6 +181,54 @@ public class PlanGeneratorService
         return result;
     }
 
+    // SAVE GENERATED PLAN TO DATABASE
+    public void savePlan(Long studentId, PlanResult plan) 
+    {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+        // 1. Create the Snapshot (The "Header")
+        RoadmapSnapshot snapshot = new RoadmapSnapshot();
+        snapshot.setStudent(student);
+        // Grab the term label of the very last semester in the plan (e.g., "FALL 2027")
+        if (!plan.getTerms().isEmpty()) 
+        {
+            snapshot.setTargetGraduation(plan.getTerms().get(plan.getTerms().size() - 1).getTermLabel());
+        }
+        RoadmapSnapshot savedSnapshot = snapshotRepository.save(snapshot);
+
+        // 2. Loop through the JSON terms and create RoadmapSemesters
+        int order = 1;
+        for (PlannedTerm termDto : plan.getTerms()) 
+        {
+            RoadmapSemester semester = new RoadmapSemester();
+            semester.setSnapshot(savedSnapshot);
+            semester.setTermLabel(termDto.getTermLabel());
+            semester.setSemesterOrder(order++);
+            RoadmapSemester savedSemester = semesterRepository.save(semester);
+
+            // 3. Loop through the classes in this semester and create RoadmapSemesterCourses
+            for (PlannedTerm.PlannedCourseDTO courseDto : termDto.getCourses()) 
+            {
+                // Split "COSC 3360" into "COSC" and "3360"
+                String[] parts = courseDto.getCourseCode().split(" ");
+                if (parts.length == 2) 
+                {
+                    Optional<Course> courseOpt = courseRepository.findBySubjectAndNumber(parts[0], parts[1]);
+                    
+                    if (courseOpt.isPresent()) 
+                    {
+                        RoadmapSemesterCourse mappedCourse = new RoadmapSemesterCourse();
+                        mappedCourse.setSemester(savedSemester);
+                        mappedCourse.setCourse(courseOpt.get());
+                        mappedCourse.setReason(courseDto.getReason());
+                        semesterCourseRepository.save(mappedCourse);
+                    }
+                }
+            }
+        }
+    }
+
     private Set<Long> getCompletedCourseIds(Long studentId) 
     {
         // 1. Fetch the student's entire transcript
@@ -205,7 +268,7 @@ public class PlanGeneratorService
 
             for (RequirementItem item : items) 
             {
-                // If this requirement is a specific course (like COSC 3360)
+                // SCENARIO A: This requirement is a specific course (like COSC 3360)
                 if (item.getCourse() != null) 
                 {
                     Long courseId = item.getCourse().getCourseId();
@@ -215,7 +278,35 @@ public class PlanGeneratorService
                         remainingCourses.add(item.getCourse());
                     }
                 }
-                // (We will handle the "Choose 1 from a List" CourseSets later to keep the MVP simple!)
+                // SCENARIO B: This requirement is a "Choose 1" List (like 4351 OR 4353)
+                else if (item.getCourseSet() != null) 
+                {
+                    Long courseSetId = item.getCourseSet().getCourseSetId();
+                    List<CourseSetCourse> setCourses = courseSetCourseRepository.findByCourseSetCourseSetId(courseSetId);
+                    
+                    boolean alreadyTakenOne = false;
+                    
+                    // Did the student already pass one of the choices?
+                    for (CourseSetCourse csc : setCourses) 
+                    {
+                        if (completedCourseIds.contains(csc.getCourse().getCourseId())) 
+                        {
+                            alreadyTakenOne = true;
+                            break;
+                        }
+                    }
+                    
+                    // If they haven't taken ANY of the choices in the list
+                    if (!alreadyTakenOne && !setCourses.isEmpty()) 
+                    {
+                        // For the MVP, we will automatically assign them the FIRST choice in the list
+                        Course chosenCourse = setCourses.get(0).getCourse();
+                        if (seenCourseIds.add(chosenCourse.getCourseId())) 
+                        {
+                            remainingCourses.add(chosenCourse);
+                        }
+                    }
+                }
             }
         }
 

@@ -38,3 +38,6 @@ application.properties
 
 .DS_Store
 **/.DS_Store
+
+# Secret Environment Variables
+.env
