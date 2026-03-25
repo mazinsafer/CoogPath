@@ -1,10 +1,23 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Node
+node_modules/
+dist/
 
-### STS ###
+# Java / Spring Boot
+target/
+*.class
+.mvn/wrapper/maven-wrapper.jar
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea
+*.iws
+*.iml
+*.ipr
+
+# STS
 .apt_generated
 .classpath
 .factorypath
@@ -13,31 +26,20 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
+# NetBeans
 /nbproject/private/
 /nbbuild/
-/dist/
 /nbdist/
 /.nb-gradle/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-### VS Code ###
-.vscode/
-
-target/
-*.class
-application.properties
-
+# OS
 .DS_Store
 **/.DS_Store
 
-# Secret Environment Variables
-.env
+# Spring Boot properties (contains secrets)
+application.properties
