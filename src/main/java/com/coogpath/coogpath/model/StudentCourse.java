@@ -26,7 +26,7 @@ public class StudentCourse
 {
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // transcript id?
 
     @ManyToOne
     @JoinColumn(name = "student_id", nullable = false)
