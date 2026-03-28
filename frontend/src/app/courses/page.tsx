@@ -63,7 +63,7 @@ export default function CoursesPage() {
     fetch(apiUrl("/courses"))
       .then((r) => r.json())
       .then((data: Course[]) => {
-        setCourses(data);
+        setCourses(data.filter((c: Course) => c.subject !== "ELEC"));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -175,7 +175,7 @@ export default function CoursesPage() {
               disabled={saving}
               className="bg-[#c8102e] text-white font-medium px-5 py-2.5 rounded-lg hover:bg-[#a00d24] disabled:opacity-50 transition-colors flex items-center gap-2"
             >
-              {saving ? "Saving..." : selectedIds.size === 0 ? "Skip for Now" : "Continue to Dashboard"}
+              {saving ? "Saving..." : "Generate Roadmap"}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>

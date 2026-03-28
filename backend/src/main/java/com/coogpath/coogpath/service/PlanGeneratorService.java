@@ -547,59 +547,65 @@ public class PlanGeneratorService
 
         String choice = student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE";
 
+        RequirementGroup freeElectivesGroup = null;
+
         for (RequirementGroup group : groups) 
         {
             String gName = group.getName();
             if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.contains("Math Minor"))) continue;
             if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.contains("Math Minor"))) continue;
             if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
-            List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
 
-            for (RequirementItem item : items) 
-            {
-                // SCENARIO A: This requirement is a specific course (like COSC 3360)
-                if (item.getCourse() != null) 
-                {
-                    Long courseId = item.getCourse().getCourseId();
-                    // Check if the student has NOT taken it yet and we haven't already added it
-                    if (!completedCourseIds.contains(courseId) && seenCourseIds.add(courseId)) 
-                    {
-                        remainingCourses.add(item.getCourse());
-                    }
-                }
-                // SCENARIO B: This requirement is a "Choose 1" List (like 4351 OR 4353)
-                else if (item.getCourseSet() != null) 
-                {
-                    Long courseSetId = item.getCourseSet().getCourseSetId();
-                    List<CourseSetCourse> setCourses = courseSetCourseRepository.findByCourseSetCourseSetId(courseSetId);
-                    
-                    boolean alreadyTakenOne = false;
-                    
-                    // Did the student already pass one of the choices?
-                    for (CourseSetCourse csc : setCourses) 
-                    {
-                        if (completedCourseIds.contains(csc.getCourse().getCourseId())) 
-                        {
-                            alreadyTakenOne = true;
-                            break;
-                        }
-                    }
-                    
-                    // If they haven't taken ANY of the choices in the list
-                    if (!alreadyTakenOne && !setCourses.isEmpty()) 
-                    {
-                        // For the MVP, we will automatically assign them the FIRST choice in the list
-                        Course chosenCourse = setCourses.get(0).getCourse();
-                        if (seenCourseIds.add(chosenCourse.getCourseId())) 
-                        {
-                            remainingCourses.add(chosenCourse);
-                        }
-                    }
-                }
+            if (gName.contains("Free Elective")) {
+                freeElectivesGroup = group;
+                continue;
+            }
+
+            addGroupCourses(group, completedCourseIds, seenCourseIds, remainingCourses);
+        }
+
+        // Only add free electives if total credits (completed + remaining required) < 120
+        if (freeElectivesGroup != null) {
+            int completedCredits = courseRepository.findAllById(completedCourseIds).stream()
+                    .mapToInt(Course::getCredits).sum();
+            int remainingCredits = remainingCourses.stream().mapToInt(Course::getCredits).sum();
+            int totalRequired = student.getDegreeProgram().getTotalCreditsRequired();
+
+            if (completedCredits + remainingCredits < totalRequired) {
+                addGroupCourses(freeElectivesGroup, completedCourseIds, seenCourseIds, remainingCourses);
             }
         }
 
         return remainingCourses;
+    }
+
+    private void addGroupCourses(RequirementGroup group, Set<Long> completedCourseIds,
+                                  Set<Long> seenCourseIds, List<Course> remainingCourses) {
+        List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
+        for (RequirementItem item : items) {
+            if (item.getCourse() != null) {
+                Long courseId = item.getCourse().getCourseId();
+                if (!completedCourseIds.contains(courseId) && seenCourseIds.add(courseId)) {
+                    remainingCourses.add(item.getCourse());
+                }
+            } else if (item.getCourseSet() != null) {
+                Long courseSetId = item.getCourseSet().getCourseSetId();
+                List<CourseSetCourse> setCourses = courseSetCourseRepository.findByCourseSetCourseSetId(courseSetId);
+                boolean alreadyTakenOne = false;
+                for (CourseSetCourse csc : setCourses) {
+                    if (completedCourseIds.contains(csc.getCourse().getCourseId())) {
+                        alreadyTakenOne = true;
+                        break;
+                    }
+                }
+                if (!alreadyTakenOne && !setCourses.isEmpty()) {
+                    Course chosenCourse = setCourses.get(0).getCourse();
+                    if (seenCourseIds.add(chosenCourse.getCourseId())) {
+                        remainingCourses.add(chosenCourse);
+                    }
+                }
+            }
+        }
     }
 
 
