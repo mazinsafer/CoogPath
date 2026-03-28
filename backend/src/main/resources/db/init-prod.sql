@@ -1,0 +1,17 @@
+SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS flyway_schema_history;
+DROP TABLE IF EXISTS roadmap_semester_course;
+DROP TABLE IF EXISTS roadmap_semester;
+DROP TABLE IF EXISTS roadmap_snapshot;
+DROP TABLE IF EXISTS student_course;
+DROP TABLE IF EXISTS student;
+DROP TABLE IF EXISTS requirement_item;
+DROP TABLE IF EXISTS course_set_course;
+DROP TABLE IF EXISTS course_set;
+DROP TABLE IF EXISTS requirement_group;
+DROP TABLE IF EXISTS degree_program;
+DROP TABLE IF EXISTS requisite_rule;
+DROP TABLE IF EXISTS requisite_node;
+DROP TABLE IF EXISTS term;
+DROP TABLE IF EXISTS course;
+SET FOREIGN_KEY_CHECKS = 1;
