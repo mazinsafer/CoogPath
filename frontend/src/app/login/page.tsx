@@ -30,6 +30,8 @@ export default function LoginPage() {
       const data = await res.json();
       localStorage.setItem("studentId", data.studentId);
       localStorage.setItem("studentName", data.name);
+      if (data.programName) localStorage.setItem("programName", data.programName);
+      if (data.capstoneChoice) localStorage.setItem("capstoneChoice", data.capstoneChoice);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

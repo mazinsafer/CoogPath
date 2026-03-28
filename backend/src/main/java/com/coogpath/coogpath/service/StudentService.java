@@ -33,6 +33,7 @@ public class StudentService
         student.setDegreeProgram(program);
         student.setCatalogYear(dto.getCatalogYear());
         student.setIncludeSummer(dto.isIncludeSummer());
+        student.setCapstoneChoice(dto.getCapstoneChoice() != null ? dto.getCapstoneChoice() : "SENIOR_SE");
 
         return studentRepository.save(student);
 

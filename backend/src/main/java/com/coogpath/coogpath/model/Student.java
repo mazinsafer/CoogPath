@@ -59,6 +59,9 @@ public class Student
     @Column(name = "include_summer", nullable=false)
     private boolean includeSummer = false;
 
+    @Column(name = "capstone_choice", length = 20)
+    private String capstoneChoice = "SENIOR_SE";
+
     @Column(name = "created_at", insertable=false, updatable=false)
     private LocalDateTime createdAt;
 

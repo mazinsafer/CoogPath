@@ -58,36 +58,45 @@ public class PlanGeneratorService
     private final RoadmapSemesterCourseRepository semesterCourseRepository;
     private final CourseSetCourseRepository courseSetCourseRepository;
 
-    public PlanResult generatePlan(Long studentId) 
+    public PlanResult generatePlan(Long studentId, String mode, String startSeason, Integer startYear, Boolean includeSummer) 
     {
         PlanResult result = new PlanResult();
 
-        // 0. Fetch the Student
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
-        // STEP 1: What have they already taken?
         Set<Long> completedCourseIds = getCompletedCourseIds(studentId);
-
-        // STEP 2: What do they still need to graduate?
         List<Course> remainingCourses = getRemainingCourses(student, completedCourseIds);
 
-        // STEP 5: GREEDY SCHEDULER
         int termCount = 0;
-        int currentYear = 2025; // Hardcoded start for MVP (Next upcoming Spring)
-        Term.Season currentSeason = Term.Season.SPRING;
+        Term.Season currentSeason = Term.Season.FALL;
+        int currentYear = 2026;
 
-        // Keep scheduling until they have no classes left, or we hit a 12-semester safety limit
-        while (!remainingCourses.isEmpty() && termCount < 12) 
+        if (startSeason != null) {
+            try { currentSeason = Term.Season.valueOf(startSeason); } catch (IllegalArgumentException ignored) {}
+        }
+        if (startYear != null) {
+            currentYear = startYear;
+        }
+
+        boolean useSummer = includeSummer != null ? includeSummer : student.isIncludeSummer();
+        String planMode = mode != null ? mode : "fastest";
+
+        // Phase 1: Schedule into raw buckets (Course objects, not DTOs yet)
+        List<String> termLabels = new ArrayList<>();
+        List<String> termSeasons = new ArrayList<>();
+        List<Integer> termYears = new ArrayList<>();
+        List<List<Course>> termBuckets = new ArrayList<>();
+        boolean isFastest = "fastest".equals(planMode);
+
+        while (!remainingCourses.isEmpty() && termCount < 16) 
         {
-            // If it's summer and they don't want summer classes, skip to Fall
-            if (currentSeason == Term.Season.SUMMER && !student.isIncludeSummer()) 
+            if (currentSeason == Term.Season.SUMMER && !useSummer) 
             {
                 currentSeason = getNextSeason(currentSeason);
                 continue;
             }
 
-            // 5a. Find all classes that are officially UNLOCKED for this semester
             List<Course> eligible = new ArrayList<>();
             for (Course c : remainingCourses) 
             {
@@ -97,77 +106,100 @@ public class PlanGeneratorService
                 }
             }
 
-            // 5b. Precompute scores, then sort by Priority Score (Highest first!)
+            boolean isSummer = (currentSeason == Term.Season.SUMMER);
+
             Map<Long, Integer> scoreCache = new HashMap<>();
             for (Course c : eligible) {
                 scoreCache.put(c.getCourseId(), calculateScore(c, remainingCourses));
             }
-            eligible.sort((c1, c2) -> Integer.compare(
-                    scoreCache.get(c2.getCourseId()), 
-                    scoreCache.get(c1.getCourseId())
-            ));
 
-            int maxCredits = getMaxCreditsForSeason(student, currentSeason);
-            int creditsSoFar = 0;
-            List<Course> selectedCourses = new ArrayList<>();
-
-            // 5c. Pack the courses into the semester until we hit the credit limit
-            for (Course c : eligible) 
-            {
-                if (creditsSoFar + c.getCredits() <= maxCredits) 
-                {
-                    selectedCourses.add(c);
-                    creditsSoFar += c.getCredits();
-                }
+            if (isSummer) {
+                eligible.sort((c1, c2) -> {
+                    int p1 = summerPriority(c1);
+                    int p2 = summerPriority(c2);
+                    if (p1 != p2) return Integer.compare(p1, p2);
+                    return Integer.compare(scoreCache.get(c2.getCourseId()), scoreCache.get(c1.getCourseId()));
+                });
+            } else {
+                eligible.sort((c1, c2) -> Integer.compare(
+                        scoreCache.get(c2.getCourseId()), 
+                        scoreCache.get(c1.getCourseId())
+                ));
             }
 
-            // Edge Case: If the credit limit is too low for even ONE class, force the top priority one in anyway
+            // Fastest: 18 credits every fall/spring, no STEM cap — pure greedy + min 1 CS
+            // Balanced: 16 credits fall/spring, max 3 STEM, min 1 CS
+            int maxCredits;
+            if (isSummer) {
+                maxCredits = 6;
+            } else if (isFastest) {
+                maxCredits = 18;
+            } else {
+                maxCredits = 16;
+            }
+
+            List<Course> selectedCourses;
+            if (isSummer) {
+                selectedCourses = selectGreedy(eligible, maxCredits);
+            } else if (isFastest) {
+                selectedCourses = selectFastestWithMinCS(eligible, maxCredits);
+            } else {
+                selectedCourses = selectWithStemLimits(eligible, maxCredits, 3);
+            }
+
             if (selectedCourses.isEmpty() && !eligible.isEmpty()) 
             {
                 selectedCourses.add(eligible.get(0));
             }
 
-            // 5d. Plate the meal! Package this semester into a DTO for React
             if (!selectedCourses.isEmpty()) 
             {
-                // E.g., "Spring 2025"
-                PlannedTerm plannedTerm = new PlannedTerm();
-                plannedTerm.setTermLabel(currentSeason + " " + currentYear);
-                plannedTerm.setSeason(currentSeason.name());
-                plannedTerm.setYear(currentYear);
-                
-                for (Course c : selectedCourses) 
-                {
-                    plannedTerm.getCourses().add(new PlannedTerm.PlannedCourseDTO(
-                            c.getSubject() + " " + c.getNumber(),
-                            c.getTitle(),
-                            c.getCredits(),
-                            "Prerequisites Met", 
-                            "Scheduled by CoogPath Algorithm" 
-                    ));
-                    plannedTerm.setTotalCredits(plannedTerm.getTotalCredits() + c.getCredits());
-                    
-                    // Add it to our "completed" list so NEXT semester's loop knows it's done!
+                termLabels.add(currentSeason + " " + currentYear);
+                termSeasons.add(currentSeason.name());
+                termYears.add(currentYear);
+                termBuckets.add(new ArrayList<>(selectedCourses));
+
+                for (Course c : selectedCourses) {
                     completedCourseIds.add(c.getCourseId());
                     remainingCourses.remove(c);
                 }
-                result.getTerms().add(plannedTerm);
             }
 
-            // Advance the clock to the next semester
             termCount++;
             currentSeason = getNextSeason(currentSeason);
             if (currentSeason == Term.Season.SPRING) currentYear++;
             
-            // Safety break: If we found ZERO eligible classes, there's an unsolvable bottleneck (missing data)
             if (selectedCourses.isEmpty() && eligible.isEmpty()) 
             {
                 break;
             }
         }
 
-        // STEP 6: DETECT BLOCKERS
-        // If the while loop finished but they still have classes left, something broke.
+        // Phase 2: Consolidate runt trailing semesters (≤ 2 courses)
+        consolidateTrailingRunts(termBuckets, termLabels, termSeasons, termYears);
+
+        // Phase 3: Convert buckets to PlannedTerm DTOs
+        for (int i = 0; i < termBuckets.size(); i++) 
+        {
+            PlannedTerm plannedTerm = new PlannedTerm();
+            plannedTerm.setTermLabel(termLabels.get(i));
+            plannedTerm.setSeason(termSeasons.get(i));
+            plannedTerm.setYear(termYears.get(i));
+
+            for (Course c : termBuckets.get(i)) 
+            {
+                plannedTerm.getCourses().add(new PlannedTerm.PlannedCourseDTO(
+                        c.getSubject() + " " + c.getNumber(),
+                        c.getTitle(),
+                        c.getCredits(),
+                        "Prerequisites Met",
+                        "Scheduled by CoogPath Algorithm"
+                ));
+                plannedTerm.setTotalCredits(plannedTerm.getTotalCredits() + c.getCredits());
+            }
+            result.getTerms().add(plannedTerm);
+        }
+
         if (!remainingCourses.isEmpty()) 
         {
             for (Course c : remainingCourses) 
@@ -179,6 +211,259 @@ public class PlanGeneratorService
         }
 
         return result;
+    }
+
+    /**
+     * Eliminates trailing semesters with 1-2 courses by merging into the previous
+     * semester or redistributing courses to balance both semesters.
+     */
+    private void consolidateTrailingRunts(List<List<Course>> buckets, List<String> labels,
+                                           List<String> seasons, List<Integer> years) 
+    {
+        if (buckets.size() < 2) return;
+
+        int lastIdx = buckets.size() - 1;
+        List<Course> lastTerm = buckets.get(lastIdx);
+
+        if (lastTerm.size() > 2) return;
+        if ("SUMMER".equals(seasons.get(lastIdx))) return;
+
+        // Find the previous non-summer term
+        int prevIdx = lastIdx - 1;
+        while (prevIdx >= 0 && "SUMMER".equals(seasons.get(prevIdx))) prevIdx--;
+        if (prevIdx < 0) return;
+
+        List<Course> prevTerm = buckets.get(prevIdx);
+        int prevCredits = prevTerm.stream().mapToInt(Course::getCredits).sum();
+        Set<Long> prevCourseIds = prevTerm.stream().map(Course::getCourseId).collect(Collectors.toSet());
+
+        // Step 1: Try to merge runt courses into prevTerm (allow up to 19 credits)
+        List<Course> merged = new ArrayList<>();
+        for (Course c : lastTerm) 
+        {
+            boolean dependsOnPrev = courseHasPrereqInSet(c.getCourseId(), prevCourseIds);
+
+            if (!dependsOnPrev && prevCredits + c.getCredits() <= 19) {
+                prevTerm.add(c);
+                prevCredits += c.getCredits();
+                merged.add(c);
+            }
+        }
+        lastTerm.removeAll(merged);
+
+        if (lastTerm.isEmpty()) {
+            buckets.remove(lastIdx);
+            labels.remove(lastIdx);
+            seasons.remove(lastIdx);
+            years.remove(lastIdx);
+            return;
+        }
+
+        // Step 2: Courses that depend on prevTerm can't be merged.
+        // Redistribute: move low-value courses from prevTerm to lastTerm to balance both.
+        int totalCourses = prevTerm.size() + lastTerm.size();
+        int targetPerTerm = (totalCourses + 1) / 2;
+
+        // Find courses in prevTerm that NO lastTerm course depends on
+        Set<Long> lastTermPrereqs = new HashSet<>();
+        for (Course c : lastTerm) {
+            lastTermPrereqs.addAll(getDirectPrereqIds(c.getCourseId()));
+        }
+
+        // Move lowest-credit courses from prevTerm to lastTerm until balanced
+        List<Course> movable = new ArrayList<>();
+        for (Course c : prevTerm) {
+            if (!lastTermPrereqs.contains(c.getCourseId())) {
+                movable.add(c);
+            }
+        }
+        // Sort by credits ascending so we move the smallest courses first
+        movable.sort((a, b) -> Integer.compare(a.getCredits(), b.getCredits()));
+
+        int lastCredits = lastTerm.stream().mapToInt(Course::getCredits).sum();
+        while (lastTerm.size() < targetPerTerm && !movable.isEmpty()) 
+        {
+            Course toMove = movable.remove(0);
+            if (lastCredits + toMove.getCredits() <= 19) {
+                prevTerm.remove(toMove);
+                lastTerm.add(toMove);
+                lastCredits += toMove.getCredits();
+            }
+        }
+    }
+
+    private boolean courseHasPrereqInSet(Long courseId, Set<Long> checkSet) 
+    {
+        Optional<RequisiteRule> ruleOpt = requisiteRuleRepository.findByCourseCourseId(courseId);
+        if (ruleOpt.isEmpty()) return false;
+        List<RequisiteNode> nodes = requisiteNodeRepository.findByRuleRuleId(ruleOpt.get().getRuleId());
+        return nodes.stream().anyMatch(n -> 
+                n.getOperator() == RequisiteNode.Operator.COURSE
+                && n.getCourse() != null
+                && checkSet.contains(n.getCourse().getCourseId()));
+    }
+
+    private Set<Long> getDirectPrereqIds(Long courseId) 
+    {
+        Set<Long> prereqs = new HashSet<>();
+        Optional<RequisiteRule> ruleOpt = requisiteRuleRepository.findByCourseCourseId(courseId);
+        if (ruleOpt.isEmpty()) return prereqs;
+        List<RequisiteNode> nodes = requisiteNodeRepository.findByRuleRuleId(ruleOpt.get().getRuleId());
+        for (RequisiteNode n : nodes) {
+            if (n.getOperator() == RequisiteNode.Operator.COURSE && n.getCourse() != null) {
+                prereqs.add(n.getCourse().getCourseId());
+            }
+        }
+        return prereqs;
+    }
+
+    private boolean isStem(Course c) {
+        String subj = c.getSubject();
+        return "COSC".equals(subj) || "MATH".equals(subj);
+    }
+
+    private boolean isCS(Course c) {
+        return "COSC".equals(c.getSubject());
+    }
+
+    /**
+     * Summer priority: lower number = picked first.
+     * 0 = non-CS/non-MATH (gen-ed, electives)
+     * 1 = MATH below 3000
+     * 2 = MATH 3000+
+     * 3 = COSC (advanced CS last)
+     */
+    private int summerPriority(Course c) {
+        if ("COSC".equals(c.getSubject())) return 3;
+        if ("MATH".equals(c.getSubject())) {
+            try {
+                int num = Integer.parseInt(c.getNumber().replaceAll("[^0-9]", ""));
+                return num < 3000 ? 1 : 2;
+            } catch (NumberFormatException e) { return 2; }
+        }
+        return 0;
+    }
+
+    private List<Course> selectGreedy(List<Course> eligible, int maxCredits) 
+    {
+        List<Course> selected = new ArrayList<>();
+        int creditsSoFar = 0;
+        for (Course c : eligible) {
+            if (creditsSoFar + c.getCredits() <= maxCredits) {
+                selected.add(c);
+                creditsSoFar += c.getCredits();
+            }
+        }
+        return selected;
+    }
+
+    /**
+     * Fastest mode: pure greedy — pack as many credits as possible, guarantee min 1 CS.
+     * No STEM cap. Sorts by priority score already, just greedily fills up to maxCredits.
+     */
+    private List<Course> selectFastestWithMinCS(List<Course> eligible, int maxCredits)
+    {
+        List<Course> selected = new ArrayList<>();
+        int creditsSoFar = 0;
+
+        // First, guarantee at least 1 CS course
+        Course firstCS = null;
+        for (Course c : eligible) {
+            if (isCS(c) && creditsSoFar + c.getCredits() <= maxCredits) {
+                firstCS = c;
+                break;
+            }
+        }
+        if (firstCS != null) {
+            selected.add(firstCS);
+            creditsSoFar += firstCS.getCredits();
+        }
+
+        // Greedily fill remaining credits with anything that fits
+        for (Course c : eligible) {
+            if (selected.contains(c)) continue;
+            if (creditsSoFar + c.getCredits() <= maxCredits) {
+                selected.add(c);
+                creditsSoFar += c.getCredits();
+            }
+        }
+        return selected;
+    }
+
+    /**
+     * Balanced mode: Fall/Spring course selection with STEM limits.
+     * Enforces: min 1 COSC, max stemCap CS+MATH, fill rest with non-STEM.
+     */
+    private List<Course> selectWithStemLimits(List<Course> eligible, int maxCredits, int stemCap) 
+    {
+        List<Course> csCourses = new ArrayList<>();
+        List<Course> mathCourses = new ArrayList<>();
+        List<Course> otherCourses = new ArrayList<>();
+
+        for (Course c : eligible) {
+            if (isCS(c)) {
+                csCourses.add(c);
+            } else if ("MATH".equals(c.getSubject())) {
+                mathCourses.add(c);
+            } else {
+                otherCourses.add(c);
+            }
+        }
+
+        List<Course> selected = new ArrayList<>();
+        int creditsSoFar = 0;
+        int stemCount = 0;
+
+        // Guarantee at least 1 CS course if available
+        if (!csCourses.isEmpty()) {
+            Course first = csCourses.remove(0);
+            selected.add(first);
+            creditsSoFar += first.getCredits();
+            stemCount++;
+        }
+
+        // Fill more STEM up to stemCap (CS first, then MATH by priority)
+        List<Course> remainingStem = new ArrayList<>();
+        remainingStem.addAll(csCourses);
+        remainingStem.addAll(mathCourses);
+
+        for (Course c : remainingStem) {
+            if (stemCount >= stemCap) break;
+            if (creditsSoFar + c.getCredits() <= maxCredits) {
+                selected.add(c);
+                creditsSoFar += c.getCredits();
+                stemCount++;
+            }
+        }
+
+        // Fill remaining credits with non-STEM courses
+        for (Course c : otherCourses) {
+            if (creditsSoFar + c.getCredits() <= maxCredits) {
+                selected.add(c);
+                creditsSoFar += c.getCredits();
+            }
+        }
+
+        // If still no CS course selected (none were eligible), and there's a CS course 
+        // that could replace a non-STEM course, do the swap
+        boolean hasCS = selected.stream().anyMatch(this::isCS);
+        if (!hasCS && !csCourses.isEmpty()) {
+            Course csToAdd = csCourses.get(0);
+            for (int i = selected.size() - 1; i >= 0; i--) {
+                Course existing = selected.get(i);
+                if (!isStem(existing)) {
+                    selected.remove(i);
+                    creditsSoFar -= existing.getCredits();
+                    if (creditsSoFar + csToAdd.getCredits() <= maxCredits) {
+                        selected.add(csToAdd);
+                        creditsSoFar += csToAdd.getCredits();
+                    }
+                    break;
+                }
+            }
+        }
+
+        return selected;
     }
 
     // SAVE GENERATED PLAN TO DATABASE
@@ -256,14 +541,18 @@ public class PlanGeneratorService
         List<Course> remainingCourses = new ArrayList<>();
         Set<Long> seenCourseIds = new HashSet<>();
 
-        // 1. Get all the requirement buckets (CS Core, Math, etc.) for their specific major
         List<RequirementGroup> groups = requirementGroupRepository.findByDegreeProgramProgramId(
                 student.getDegreeProgram().getProgramId()
         );
 
-        // 2. Loop through every bucket to see what courses are inside
+        String choice = student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE";
+
         for (RequirementGroup group : groups) 
         {
+            String gName = group.getName();
+            if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.contains("Math Minor"))) continue;
+            if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.contains("Math Minor"))) continue;
+            if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
             List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
 
             for (RequirementItem item : items) 
@@ -426,14 +715,5 @@ public class PlanGeneratorService
         if (current == Term.Season.SPRING) return Term.Season.SUMMER;
         return Term.Season.FALL;
     }
-
-    private int getMaxCreditsForSeason(Student student, Term.Season season) 
-    {
-        if (season == Term.Season.FALL) return student.getMaxCreditsFall();
-        if (season == Term.Season.SPRING) return student.getMaxCreditsSpring();
-        return student.getMaxCreditsSummer();
-    }
-
-
 
 }

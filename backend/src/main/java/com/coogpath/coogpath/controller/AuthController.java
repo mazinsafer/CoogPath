@@ -55,6 +55,8 @@ public class AuthController {
             response.put("studentId", student.getStudentId());
             response.put("name", student.getName());
             response.put("programId", student.getDegreeProgram().getProgramId());
+            response.put("programName", student.getDegreeProgram().getName());
+            response.put("capstoneChoice", student.getCapstoneChoice());
             
             return ResponseEntity.ok(response);
             

@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.coogpath.coogpath.dto.PlanResult;
@@ -22,16 +23,15 @@ public class PlanController
 {
     private final PlanGeneratorService planGeneratorService;
 
-
-    /**
-     * Endpoint to trigger the AI algorithm and get a degree plan.
-     * GET /api/plan/generate/1
-     */
     @GetMapping("/generate/{studentId}")
-    public PlanResult generatePlan(@PathVariable Long studentId)
+    public PlanResult generatePlan(
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "fastest") String mode,
+            @RequestParam(required = false) String startSeason,
+            @RequestParam(required = false) Integer startYear,
+            @RequestParam(required = false) Boolean includeSummer)
     {
-        PlanResult result = planGeneratorService.generatePlan(studentId);
-        return result;
+        return planGeneratorService.generatePlan(studentId, mode, startSeason, startYear, includeSummer);
     }
 
     /**

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import jsPDF from "jspdf";
 
 interface PlannedCourse {
   courseCode: string;
@@ -26,20 +27,24 @@ interface PlanResult {
   blockers: string[];
 }
 
-const NAV_ITEMS: Record<string, { label: string; icon: () => React.JSX.Element; active?: boolean }[]> = {
+const NAV_ITEMS: Record<string, { label: string; icon: () => React.JSX.Element; active?: boolean; href?: string }[]> = {
   PLANNING: [
     { label: "My Roadmap", icon: MapIcon, active: true },
-    { label: "Requirements", icon: ClipboardIcon },
-    { label: "What-If Planner", icon: LightbulbIcon },
+    { label: "Requirements", icon: ClipboardIcon, href: "/requirements" },
   ],
   COURSES: [
-    { label: "Course Catalog", icon: BookIcon },
-    { label: "My Transcript", icon: FileIcon },
+    { label: "Course Catalog", icon: BookIcon, href: "/catalog" },
+    { label: "My Transcript", icon: FileIcon, href: "/transcript" },
   ],
   TOOLS: [
     { label: "AI Advisor", icon: SparkleIcon },
-    { label: "Export PDF", icon: DownloadIcon },
+    { label: "Export PDF", icon: DownloadIcon, href: "EXPORT_PDF" },
   ],
+};
+
+const MODE_MAP: Record<string, string> = {
+  "Fastest": "fastest",
+  "Balanced": "balanced",
 };
 
 export default function DashboardPage() {
@@ -49,6 +54,8 @@ export default function DashboardPage() {
   const [studentName, setStudentName] = useState("");
   const [studentId, setStudentId] = useState<string | null>(null);
   const [planMode, setPlanMode] = useState("Fastest");
+  const [startSemester, setStartSemester] = useState("");
+  const [includeSummer, setIncludeSummer] = useState(false);
 
   useEffect(() => {
     const id = localStorage.getItem("studentId");
@@ -59,13 +66,38 @@ export default function DashboardPage() {
     }
     setStudentId(id);
     setStudentName(name || "Student");
-    fetchPlan(id);
+
+    const savedStart = localStorage.getItem("startSemester");
+    const savedSummer = localStorage.getItem("includeSummer") === "true";
+    setIncludeSummer(savedSummer);
+
+    if (savedStart) {
+      setStartSemester(savedStart);
+      fetchPlan(id, "fastest", savedStart, savedSummer);
+    } else {
+      const now = new Date();
+      const m = now.getMonth();
+      const y = now.getFullYear();
+      const defaultStart = m < 8 ? `FALL-${y}` : `SPRING-${y + 1}`;
+      setStartSemester(defaultStart);
+      fetchPlan(id, "fastest", defaultStart, savedSummer);
+    }
   }, [router]);
 
-  const fetchPlan = async (id: string) => {
+  const fetchPlan = async (id: string, mode?: string, start?: string, summer?: boolean) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/plan/generate/${id}`);
+      const modeKey = MODE_MAP[mode ?? planMode] ?? (mode ?? "fastest");
+      const sem = start ?? startSemester;
+      const [season, year] = sem.includes("-") ? sem.split("-") : ["FALL", "2026"];
+      const useSummer = summer ?? includeSummer;
+      const params = new URLSearchParams({
+        mode: modeKey,
+        startSeason: season,
+        startYear: year,
+        includeSummer: String(useSummer),
+      });
+      const res = await fetch(`/api/plan/generate/${id}?${params}`);
       if (!res.ok) throw new Error("Failed to generate plan");
       const data: PlanResult = await res.json();
       setPlan(data);
@@ -76,15 +108,88 @@ export default function DashboardPage() {
     }
   };
 
-  const totalCreditsPlanned = plan?.terms.reduce((sum, t) => sum + t.totalCredits, 0) ?? 0;
+  const handleModeChange = (mode: string) => {
+    setPlanMode(mode);
+    if (studentId) fetchPlan(studentId, mode);
+  };
+
+  const handleSemesterChange = (sem: string) => {
+    setStartSemester(sem);
+    localStorage.setItem("startSemester", sem);
+    if (studentId) fetchPlan(studentId, planMode, sem);
+  };
+
+  const creditsRemaining = plan?.terms.reduce((sum, t) => sum + t.totalCredits, 0) ?? 0;
   const totalCourses = plan?.terms.reduce((sum, t) => sum + t.courses.length, 0) ?? 0;
   const semestersLeft = plan?.terms.length ?? 0;
   const lastTerm = plan?.terms[plan.terms.length - 1];
   const graduationTarget = lastTerm ? lastTerm.termLabel : "—";
 
+  const handleExportPDF = () => {
+    if (!plan) return;
+    const doc = new jsPDF();
+    const pageW = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    doc.setFontSize(20);
+    doc.setTextColor(200, 16, 46);
+    doc.text("CoogPath Degree Roadmap", pageW / 2, y, { align: "center" });
+    y += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Student: ${studentName}`, 14, y);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageW - 14, y, { align: "right" });
+    y += 4;
+
+    doc.setDrawColor(200);
+    doc.line(14, y, pageW - 14, y);
+    y += 8;
+
+    for (const term of plan.terms) {
+      if (y > 265) { doc.addPage(); y = 20; }
+
+      doc.setFontSize(13);
+      doc.setTextColor(30);
+      doc.text(term.termLabel, 14, y);
+      doc.setFontSize(10);
+      doc.setTextColor(140);
+      doc.text(`${term.totalCredits} credits`, pageW - 14, y, { align: "right" });
+      y += 6;
+
+      doc.setFontSize(10);
+      for (const c of term.courses) {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.setTextColor(60);
+        doc.text(`${c.courseCode}`, 18, y);
+        doc.setTextColor(110);
+        doc.text(c.title, 55, y);
+        doc.text(`${c.credits} cr`, pageW - 14, y, { align: "right" });
+        y += 5;
+      }
+      y += 6;
+    }
+
+    if (plan.blockers.length > 0) {
+      if (y > 260) { doc.addPage(); y = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(200, 16, 46);
+      doc.text("Blockers", 14, y);
+      y += 6;
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      for (const b of plan.blockers) {
+        if (y > 275) { doc.addPage(); y = 20; }
+        doc.text(`• ${b}`, 18, y);
+        y += 5;
+      }
+    }
+
+    doc.save(`coogpath-roadmap-${studentName.replace(/\s+/g, "-").toLowerCase()}.pdf`);
+  };
+
   const handleLogout = () => {
-    localStorage.removeItem("studentId");
-    localStorage.removeItem("studentName");
+    localStorage.clear();
     router.push("/");
   };
 
@@ -114,6 +219,10 @@ export default function DashboardPage() {
                 {items.map((item) => (
                   <button
                     key={item.label}
+                    onClick={() => {
+                      if (item.href === "EXPORT_PDF") { handleExportPDF(); }
+                      else if (item.href) { router.push(item.href); }
+                    }}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                       item.active
                         ? "bg-[#c8102e]/10 text-[#c8102e]"
@@ -136,7 +245,6 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{studentName}</div>
-              <div className="text-[10px] text-zinc-600">CS &middot; Class of &apos;27</div>
             </div>
           </div>
           <button
@@ -155,12 +263,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">My Roadmap</h1>
             <div className="flex items-center gap-3">
-              {/* Plan Mode Toggle */}
               <div className="flex bg-[#141414] border border-[#222] rounded-lg p-0.5">
-                {["Fastest", "Balanced", "Custom"].map((mode) => (
+                {["Fastest", "Balanced"].map((mode) => (
                   <button
                     key={mode}
-                    onClick={() => setPlanMode(mode)}
+                    onClick={() => handleModeChange(mode)}
                     className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                       planMode === mode ? "bg-[#c8102e] text-white" : "text-zinc-500 hover:text-zinc-300"
                     }`}
@@ -170,13 +277,22 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-2 bg-[#141414] border border-[#222] rounded-lg px-3 py-1.5">
-                <svg className="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-xs text-zinc-400">Target:</span>
-                <span className="text-xs font-medium">{graduationTarget}</span>
-              </div>
+              <select
+                value={startSemester}
+                onChange={(e) => handleSemesterChange(e.target.value)}
+                className="bg-[#141414] border border-[#222] rounded-lg px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-[#c8102e] transition-colors appearance-none"
+              >
+                {(() => {
+                  const opts: { value: string; label: string }[] = [];
+                  const base = new Date().getFullYear();
+                  for (let y = base; y <= base + 3; y++) {
+                    opts.push({ value: `SPRING-${y}`, label: `Spring ${y}` });
+                    opts.push({ value: `SUMMER-${y}`, label: `Summer ${y}` });
+                    opts.push({ value: `FALL-${y}`, label: `Fall ${y}` });
+                  }
+                  return opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>);
+                })()}
+              </select>
 
               <button
                 onClick={() => studentId && fetchPlan(studentId)}
@@ -188,7 +304,10 @@ export default function DashboardPage() {
                 Recalculate
               </button>
 
-              <button className="flex items-center gap-1.5 bg-[#c8102e] text-white rounded-lg px-3.5 py-1.5 text-xs font-medium hover:bg-[#a00d24] transition-colors">
+              <button
+                onClick={() => router.push("/courses")}
+                className="flex items-center gap-1.5 bg-[#c8102e] text-white rounded-lg px-3.5 py-1.5 text-xs font-medium hover:bg-[#a00d24] transition-colors"
+              >
                 <span className="text-sm">+</span>
                 Add Course
               </button>
@@ -204,10 +323,34 @@ export default function DashboardPage() {
           <div className="px-8 py-6">
             {/* Stat Cards */}
             <div className="grid grid-cols-4 gap-4 mb-6">
-              <StatCard label="CREDITS COMPLETED" value="62" sub="of 120 total required" color="green" icon="check" />
-              <StatCard label="SEMESTERS LEFT" value={String(semestersLeft)} sub={`Graduating ${graduationTarget}`} color="blue" icon="calendar" />
-              <StatCard label="COURSES REMAINING" value={String(totalCourses)} sub={`${Math.round(totalCourses / Math.max(semestersLeft, 1))} per semester avg`} color="red" icon="book" />
-              <StatCard label="BOTTLENECKS" value={String(plan.blockers.length)} sub="courses blocking progress" color={plan.blockers.length > 0 ? "amber" : "green"} icon="warning" />
+              <StatCard
+                label="CREDITS REMAINING"
+                value={String(creditsRemaining)}
+                sub="credits left to graduate"
+                color="blue"
+                icon="book"
+              />
+              <StatCard
+                label="SEMESTERS LEFT"
+                value={String(semestersLeft)}
+                sub={`Graduating ${graduationTarget}`}
+                color="blue"
+                icon="calendar"
+              />
+              <StatCard
+                label="COURSES REMAINING"
+                value={String(totalCourses)}
+                sub={`${Math.round(totalCourses / Math.max(semestersLeft, 1))} per semester avg`}
+                color="red"
+                icon="book"
+              />
+              <StatCard
+                label="BOTTLENECKS"
+                value={String(plan.blockers.length)}
+                sub={plan.blockers.length > 0 ? "courses blocking progress" : "no blockers detected"}
+                color={plan.blockers.length > 0 ? "amber" : "green"}
+                icon="warning"
+              />
             </div>
 
             {/* Blockers Alert */}
@@ -226,7 +369,6 @@ export default function DashboardPage() {
             {/* Semester Roadmap Header */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Semester Roadmap</h2>
-              <span className="text-xs text-zinc-600">Catalog Year: 2023-24</span>
             </div>
 
             {/* Semester Timeline */}
@@ -247,9 +389,9 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3 mb-3 -mt-1">
                     <span className="font-semibold text-sm">{term.termLabel}</span>
                     <span className="text-xs text-zinc-600">{term.totalCredits} credits</span>
-                    {termIndex < 2 && (
-                      <span className="text-[10px] bg-[#22c55e]/10 text-[#22c55e] px-2 py-0.5 rounded-full font-medium">
-                        Completed
+                    {termIndex === 0 && (
+                      <span className="text-[10px] bg-[#3b82f6]/10 text-[#3b82f6] px-2 py-0.5 rounded-full font-medium">
+                        Up Next
                       </span>
                     )}
                   </div>
@@ -263,13 +405,6 @@ export default function DashboardPage() {
                       >
                         <div className="flex items-start justify-between mb-2">
                           <span className="text-xs font-semibold text-zinc-300">{course.courseCode}</span>
-                          {termIndex < 2 && (
-                            <div className="w-4 h-4 bg-[#22c55e] rounded-full flex items-center justify-center">
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
                         </div>
                         <div className="text-xs text-zinc-500 mb-2 leading-relaxed line-clamp-2">{course.title}</div>
                         <div className="text-[10px] text-zinc-600">{course.credits} credits</div>
@@ -290,40 +425,51 @@ export default function DashboardPage() {
       {/* Right Sidebar */}
       <aside className="w-72 bg-[#0f0f0f] border-l border-[#1a1a1a] overflow-y-auto shrink-0">
         <div className="p-5">
-          {/* Requirements */}
+          {/* Plan Summary */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-sm">Requirements</h3>
-              <span className="text-xs text-zinc-600">5 groups</span>
-            </div>
-            <div className="space-y-3">
-              {[
-                { name: "Core Curriculum", current: 42, total: 42, color: "#22c55e" },
-                { name: "CS Foundation", current: 12, total: 12, color: "#22c55e" },
-                { name: "Math Foundation", current: 14, total: 14, color: "#22c55e" },
-                { name: "Advanced CS", current: 3, total: 24, color: "#3b82f6" },
-                { name: "Tech Electives", current: 0, total: 12, color: "#3b82f6" },
-                { name: "Capstone", current: 0, total: 6, color: "#3b82f6" },
-              ].map((req) => (
-                <div key={req.name}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-zinc-400">{req.name}</span>
-                    <span className="text-[10px] text-zinc-600">
-                      {req.current}/{req.total} cr
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-[#1a1a1a] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${(req.current / req.total) * 100}%`,
-                        backgroundColor: req.color,
-                      }}
-                    />
-                  </div>
+            <h3 className="font-semibold text-sm mb-4">Plan Summary</h3>
+            {plan ? (
+              <div className="space-y-3">
+                <div className="bg-[#141414] border border-[#1e1e1e] rounded-lg p-3">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Total Credits in Plan</div>
+                  <div className="text-lg font-bold">{creditsRemaining}</div>
                 </div>
-              ))}
-            </div>
+                <div className="bg-[#141414] border border-[#1e1e1e] rounded-lg p-3">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Total Courses</div>
+                  <div className="text-lg font-bold">{totalCourses}</div>
+                </div>
+                <div className="bg-[#141414] border border-[#1e1e1e] rounded-lg p-3">
+                  <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Graduation Target</div>
+                  <div className="text-lg font-bold">{graduationTarget}</div>
+                </div>
+
+                {plan.unmetRequirements.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs font-semibold text-amber-500 mb-2">Unmet Requirements</div>
+                    <div className="space-y-1.5">
+                      {plan.unmetRequirements.map((req, i) => (
+                        <div key={i} className="text-xs text-zinc-400 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">
+                          {req}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {plan.unmetRequirements.length === 0 && (
+                  <div className="bg-[#22c55e]/5 border border-[#22c55e]/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-[#22c55e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-xs text-[#22c55e] font-medium">All requirements covered</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-zinc-600">No plan loaded</div>
+            )}
           </div>
 
           {/* AI Advisor */}
@@ -339,18 +485,25 @@ export default function DashboardPage() {
               </div>
               <span className="text-[9px] text-zinc-600 bg-[#1a1a1a] px-2 py-0.5 rounded">Powered by GPT</span>
             </div>
-            <div className="text-[10px] text-[#c8102e] font-semibold uppercase tracking-wider mb-2">Opportunity</div>
             <p className="text-xs text-zinc-400 leading-relaxed">
               {plan ? (
                 <>
-                  I&apos;ve found your fastest path to graduation is{" "}
-                  <span className="text-white font-medium">{graduationTarget}</span> &mdash;{" "}
-                  {semestersLeft} semesters away.
+                  Your plan covers{" "}
+                  <span className="text-white font-medium">{totalCourses} courses</span> across{" "}
+                  <span className="text-white font-medium">{semestersLeft} semesters</span>,
+                  targeting graduation by{" "}
+                  <span className="text-white font-medium">{graduationTarget}</span>.
                   {plan.blockers.length > 0 && (
                     <>
                       <br /><br />
-                      <span className="text-white font-medium">{plan.blockers[0]?.split(" ")[0]}</span> is your biggest
-                      bottleneck right now. Consider addressing it early to stay on track.
+                      <span className="text-amber-400 font-medium">Watch out:</span>{" "}
+                      {plan.blockers[0]}
+                    </>
+                  )}
+                  {plan.blockers.length === 0 && (
+                    <>
+                      <br /><br />
+                      No bottlenecks detected — you&apos;re on a clear path!
                     </>
                   )}
                 </>
@@ -378,34 +531,23 @@ function StatCard({ label, value, sub, color, icon }: {
     <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">{label}</span>
-        {icon === "check" && (
-          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: `${c}15` }}>
-            <svg className="w-3 h-3" style={{ color: c }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        )}
-        {icon === "calendar" && (
-          <div className="w-5 h-5 rounded-full flex items-center justify-center bg-[#1a1a1a]">
-            <svg className="w-3 h-3 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-        )}
-        {icon === "book" && (
-          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: `${c}15` }}>
+        <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: `${c}15` }}>
+          {icon === "book" && (
             <svg className="w-3 h-3" style={{ color: c }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-          </div>
-        )}
-        {icon === "warning" && (
-          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: `${c}15` }}>
+          )}
+          {icon === "calendar" && (
+            <svg className="w-3 h-3" style={{ color: c }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          )}
+          {icon === "warning" && (
             <svg className="w-3 h-3" style={{ color: c }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div className="text-3xl font-bold">{value}</div>
       <div className="text-[11px] text-zinc-600 mt-0.5">{sub}</div>
@@ -425,13 +567,6 @@ function ClipboardIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-    </svg>
-  );
-}
-function LightbulbIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
     </svg>
   );
 }
