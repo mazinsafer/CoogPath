@@ -1,8 +1,3 @@
-DROP DATABASE IF EXISTS coogpath;
-CREATE DATABASE coogpath;
-USE coogpath;
-
-
 -- COURSE
 
 CREATE TABLE course (

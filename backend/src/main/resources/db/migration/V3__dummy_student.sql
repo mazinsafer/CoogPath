@@ -3,8 +3,6 @@
 -- Run AFTER cs_degree_plan.sql
 -- =======================================================
 
-USE coogpath;
-
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- 1. Create our test student: Jorge Coog

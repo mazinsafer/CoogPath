@@ -2,7 +2,6 @@
 -- V4: Capstone/Minor, Math Minor Courses, Free Electives
 -- =======================================================
 
-USE coogpath;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =======================================================
