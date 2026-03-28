@@ -24,16 +24,68 @@ export default function SignupPage() {
   const [programId, setProgramId] = useState<number | null>(null);
   const [programs, setPrograms] = useState<DegreeProgram[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(apiUrl("/programs"))
-      .then((r) => r.json())
-      .then(setPrograms)
-      .catch(() => {});
+    let cancelled = false;
+
+    const loadPrograms = async () => {
+      setLoadingPrograms(true);
+
+      try {
+        const response = await fetch(apiUrl("/programs"), {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("We couldn't load the list of majors right now.");
+        }
+
+        const data: unknown = await response.json();
+
+        if (!Array.isArray(data)) {
+          throw new Error("The majors list came back in an unexpected format.");
+        }
+
+        if (!cancelled) {
+          setPrograms(
+            data.filter((item): item is DegreeProgram => {
+              return (
+                typeof item === "object" &&
+                item !== null &&
+                typeof (item as DegreeProgram).programId === "number" &&
+                typeof (item as DegreeProgram).name === "string" &&
+                typeof (item as DegreeProgram).college === "string"
+              );
+            })
+          );
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setPrograms([]);
+          setError(err instanceof Error ? err.message : "We couldn't load the list of majors right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingPrograms(false);
+        }
+      }
+    };
+
+    void loadPrograms();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSubmit = async () => {
+    if (!programs.length) {
+      setError("Signup is temporarily unavailable because majors could not be loaded.");
+      return;
+    }
+
     if (!name || !email || !password || !programId) {
       setError("Please fill in all required fields");
       return;
@@ -138,8 +190,11 @@ export default function SignupPage() {
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1.5">Select Major</label>
               <select value={programId ?? ""} onChange={(e) => setProgramId(Number(e.target.value) || null)}
-                className="w-full bg-[#141414] border border-[#222] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#c8102e] transition-colors appearance-none">
-                <option value="">Choose your major</option>
+                disabled={loadingPrograms || programs.length === 0}
+                className="w-full bg-[#141414] border border-[#222] rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#c8102e] transition-colors appearance-none disabled:opacity-60 disabled:cursor-not-allowed">
+                <option value="">
+                  {loadingPrograms ? "Loading majors..." : programs.length === 0 ? "Majors unavailable right now" : "Choose your major"}
+                </option>
                 {programs.map((p) => (
                   <option key={p.programId} value={p.programId}>{p.name}</option>
                 ))}
