@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
+import { apiUrl } from "@/lib/api";
+
 interface Course {
   courseId: number;
   subject: string;
@@ -58,7 +60,7 @@ export default function CoursesPage() {
     }
 
     setLoading(true);
-    fetch("/api/courses")
+    fetch(apiUrl("/courses"))
       .then((r) => r.json())
       .then((data: Course[]) => {
         setCourses(data);
@@ -124,7 +126,7 @@ export default function CoursesPage() {
     setSaving(true);
     try {
       if (isCSMajor) {
-        await fetch(`/api/students/${studentId}/capstone`, {
+        await fetch(apiUrl(`/students/${studentId}/capstone`), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ capstoneChoice }),
@@ -136,7 +138,7 @@ export default function CoursesPage() {
       localStorage.setItem("startSemester", startSemester);
 
       if (selectedIds.size > 0) {
-        const res = await fetch(`/api/students/${studentId}/courses`, {
+        const res = await fetch(apiUrl(`/students/${studentId}/courses`), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(Array.from(selectedIds)),

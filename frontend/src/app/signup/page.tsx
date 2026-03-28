@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { apiUrl } from "@/lib/api";
+
 interface DegreeProgram {
   programId: number;
   name: string;
@@ -26,7 +28,7 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/programs")
+    fetch(apiUrl("/programs"))
       .then((r) => r.json())
       .then(setPrograms)
       .catch(() => {});
@@ -44,7 +46,7 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/students/register", {
+      const res = await fetch(apiUrl("/students/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, programId, catalogYear: 2024 }),

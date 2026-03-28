@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 
+import { apiUrl } from "@/lib/api";
+
 interface Course {
   courseId: number;
   subject: string;
@@ -18,7 +20,7 @@ export default function CatalogPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/courses")
+    fetch(apiUrl("/courses"))
       .then((r) => r.json())
       .then((data: Course[]) => { setCourses(data); setLoading(false); })
       .catch(() => setLoading(false));

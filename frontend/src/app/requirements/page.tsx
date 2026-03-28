@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { apiUrl } from "@/lib/api";
+
 interface CourseReq {
   courseCode: string;
   title: string;
@@ -26,7 +28,7 @@ export default function RequirementsPage() {
   useEffect(() => {
     const id = localStorage.getItem("studentId");
     if (!id) { router.push("/login"); return; }
-    fetch(`/api/requirements/${id}`)
+    fetch(apiUrl(`/requirements/${id}`))
       .then((r) => r.json())
       .then((data) => { setGroups(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));

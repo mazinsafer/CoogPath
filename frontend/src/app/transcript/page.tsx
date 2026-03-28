@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { apiUrl } from "@/lib/api";
+
 interface TranscriptEntry {
   courseCode: string;
   title: string;
@@ -20,7 +22,7 @@ export default function TranscriptPage() {
   useEffect(() => {
     const id = localStorage.getItem("studentId");
     if (!id) { router.push("/login"); return; }
-    fetch(`/api/students/${id}/transcript`)
+    fetch(apiUrl(`/students/${id}/transcript`))
       .then((r) => r.json())
       .then((data) => { setEntries(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));

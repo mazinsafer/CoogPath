@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 
+import { apiUrl } from "@/lib/api";
+
 interface PlannedCourse {
   courseCode: string;
   title: string;
@@ -97,7 +99,7 @@ export default function DashboardPage() {
         startYear: year,
         includeSummer: String(useSummer),
       });
-      const res = await fetch(`/api/plan/generate/${id}?${params}`);
+      const res = await fetch(`${apiUrl(`/plan/generate/${id}`)}?${params}`);
       if (!res.ok) throw new Error("Failed to generate plan");
       const data: PlanResult = await res.json();
       setPlan(data);
