@@ -53,9 +53,6 @@ export default function LandingPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
               </a>
-              <button className="bg-[#141414] border border-[#222] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#1a1a1a] transition-colors">
-                Watch Demo
-              </button>
             </div>
           </div>
 

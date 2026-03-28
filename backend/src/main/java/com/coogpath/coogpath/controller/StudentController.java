@@ -84,6 +84,17 @@ public class StudentController {
         return ResponseEntity.ok(Map.of("capstoneChoice", choice));
     }
 
+    @GetMapping("/{studentId}/courses")
+    public ResponseEntity<?> getCompletedCourses(@PathVariable Long studentId) {
+        studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+        List<StudentCourse> records = studentCourseRepository.findByStudentStudentId(studentId);
+        List<Long> courseIds = records.stream()
+                .map(sc -> sc.getCourse().getCourseId())
+                .toList();
+        return ResponseEntity.ok(courseIds);
+    }
+
     @PostMapping("/{studentId}/courses")
     public ResponseEntity<?> saveCompletedCourses(
             @PathVariable Long studentId,
@@ -91,7 +102,21 @@ public class StudentController {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
+        List<StudentCourse> existing = studentCourseRepository.findByStudentStudentId(studentId);
+        java.util.Set<Long> existingIds = existing.stream()
+                .map(sc -> sc.getCourse().getCourseId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        // Remove courses that were deselected
+        for (StudentCourse sc : existing) {
+            if (!courseIds.contains(sc.getCourse().getCourseId())) {
+                studentCourseRepository.delete(sc);
+            }
+        }
+
+        // Add newly selected courses
         for (Long courseId : courseIds) {
+            if (existingIds.contains(courseId)) continue;
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new IllegalArgumentException("Course not found: " + courseId));
 

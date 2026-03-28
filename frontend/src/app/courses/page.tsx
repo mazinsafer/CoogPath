@@ -60,13 +60,16 @@ export default function CoursesPage() {
     }
 
     setLoading(true);
-    fetch(apiUrl("/courses"))
-      .then((r) => r.json())
-      .then((data: Course[]) => {
-        setCourses(data.filter((c: Course) => c.subject !== "ELEC"));
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch(apiUrl("/courses")).then((r) => r.json()),
+      fetch(apiUrl(`/students/${id}/courses`)).then((r) => r.json()).catch(() => []),
+    ]).then(([allCourses, savedIds]: [Course[], number[]]) => {
+      setCourses(allCourses.filter((c: Course) => c.subject !== "ELEC"));
+      if (Array.isArray(savedIds) && savedIds.length > 0) {
+        setSelectedIds(new Set(savedIds));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [router]);
 
   const subjects = useMemo(() => {
