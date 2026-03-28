@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
@@ -15,15 +13,15 @@ export default function LandingPage() {
           <span className="text-zinc-600 text-lg">.</span>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors">
+          <a href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors">
             Login
-          </Link>
-          <Link
+          </a>
+          <a
             href="/signup"
             className="bg-[#c8102e] text-white text-sm font-medium px-5 py-2 rounded-lg hover:bg-[#a00d24] transition-colors"
           >
             Get Started
-          </Link>
+          </a>
         </div>
       </nav>
 
@@ -46,7 +44,7 @@ export default function LandingPage() {
               bottlenecks, and keeps you on track.
             </p>
             <div className="flex items-center gap-4">
-              <Link
+              <a
                 href="/signup"
                 className="bg-[#c8102e] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#a00d24] transition-colors flex items-center gap-2"
               >
@@ -54,7 +52,7 @@ export default function LandingPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
-              </Link>
+              </a>
               <button className="bg-[#141414] border border-[#222] text-white font-medium px-6 py-3 rounded-lg hover:bg-[#1a1a1a] transition-colors">
                 Watch Demo
               </button>

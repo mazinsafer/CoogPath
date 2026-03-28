@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiUrl } from "@/lib/api";
@@ -77,10 +76,10 @@ export default function SignupPage() {
       {/* Left Panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 p-12">
         <div>
-          <Link href="/" className="flex items-center gap-2 mb-20">
+          <a href="/" className="flex items-center gap-2 mb-20">
             <div className="w-8 h-8 bg-[#c8102e] rounded-lg flex items-center justify-center text-xs font-bold">CP</div>
             <span className="text-lg font-semibold">CoogPath</span>
-          </Link>
+          </a>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Let&apos;s Build Your<br />Graduation Roadmap
           </h1>
@@ -159,7 +158,7 @@ export default function SignupPage() {
 
             <p className="text-xs text-zinc-600 text-center">
               Already have an account?{" "}
-              <Link href="/login" className="text-[#c8102e] hover:underline">Sign in</Link>
+              <a href="/login" className="text-[#c8102e] hover:underline">Sign in</a>
             </p>
           </div>
         </div>

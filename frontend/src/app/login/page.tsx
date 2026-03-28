@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiUrl } from "@/lib/api";
@@ -45,12 +44,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-8">
       <div className="w-full max-w-sm">
-        <Link href="/" className="flex items-center gap-2 mb-12 justify-center">
+        <a href="/" className="flex items-center gap-2 mb-12 justify-center">
           <div className="w-8 h-8 bg-[#c8102e] rounded-lg flex items-center justify-center text-xs font-bold">
             CP
           </div>
           <span className="text-lg font-semibold">CoogPath</span>
-        </Link>
+        </a>
 
         <h1 className="text-2xl font-bold text-center mb-1">Welcome back</h1>
         <p className="text-zinc-500 text-sm text-center mb-8">
@@ -98,9 +97,9 @@ export default function LoginPage() {
 
         <p className="text-sm text-zinc-600 text-center mt-6">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-[#c8102e] hover:underline">
+          <a href="/signup" className="text-[#c8102e] hover:underline">
             Get started
-          </Link>
+          </a>
         </p>
       </div>
     </div>
