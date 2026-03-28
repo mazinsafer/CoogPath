@@ -1,17 +1,13 @@
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import type { NextConfig } from "next";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: join(__dirname, "../"),
   async rewrites() {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8080/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
