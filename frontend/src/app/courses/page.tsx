@@ -151,14 +151,12 @@ export default function CoursesPage() {
         body: JSON.stringify({ freeElectiveCredits }),
       });
 
-      if (selectedIds.size > 0) {
-        const res = await fetch(apiUrl(`/students/${studentId}/courses`), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(Array.from(selectedIds)),
-        });
-        if (!res.ok) throw new Error("Failed to save courses");
-      }
+      const res = await fetch(apiUrl(`/students/${studentId}/courses`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Array.from(selectedIds)),
+      });
+      if (!res.ok) throw new Error("Failed to save courses");
 
       router.push("/dashboard");
     } catch {
