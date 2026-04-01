@@ -112,7 +112,7 @@ export default function CoursesPage() {
 
   const selectedCredits = courses
     .filter((c) => selectedIds.has(c.courseId))
-    .reduce((sum, c) => sum + c.credits, 0);
+    .reduce((sum, c) => sum + c.credits, 0) + freeElectiveCredits;
 
   const semesterOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
