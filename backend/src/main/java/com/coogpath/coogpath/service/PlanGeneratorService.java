@@ -564,14 +564,16 @@ public class PlanGeneratorService
             addGroupCourses(group, completedCourseIds, seenCourseIds, remainingCourses);
         }
 
-        // Only add free electives if total credits (completed + remaining required) < 120
+        // Only add free electives if total credits (completed + remaining + self-reported free electives) < 120
         if (freeElectivesGroup != null) {
             int completedCredits = courseRepository.findAllById(completedCourseIds).stream()
                     .mapToInt(Course::getCredits).sum();
+            int selfReportedFreeElectives = student.getFreeElectiveCredits() != null ? student.getFreeElectiveCredits() : 0;
             int remainingCredits = remainingCourses.stream().mapToInt(Course::getCredits).sum();
             int totalRequired = student.getDegreeProgram().getTotalCreditsRequired();
 
-            if (completedCredits + remainingCredits < totalRequired) {
+            int deficit = totalRequired - (completedCredits + selfReportedFreeElectives + remainingCredits);
+            if (deficit > 0) {
                 addGroupCourses(freeElectivesGroup, completedCourseIds, seenCourseIds, remainingCourses);
             }
         }

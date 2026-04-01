@@ -22,11 +22,11 @@ INSERT INTO course (course_id, subject, number, title, credits) VALUES
 (9,  'COSC', '4351',        'Fundamentals of Software Engineering',       3),
 (38, 'COSC', '4353',        'Software Design',                            3),
 -- CS Advanced Elective placeholders
-(10, 'COSC', '3XXX-ELEC-1', 'CS Advanced Elective 1',                    3),
-(11, 'COSC', '3XXX-ELEC-2', 'CS Advanced Elective 2',                    3),
-(12, 'COSC', '3XXX-ELEC-3', 'CS Advanced Elective 3',                    3),
-(13, 'COSC', '3XXX-ELEC-4', 'CS Advanced Elective 4',                    3),
-(14, 'COSC', '3XXX-ELEC-5', 'CS Advanced Elective 5',                    3),
+(10, 'COSC', '4XXX-ELEC-1', 'CS Advanced Elective 1',                    3),
+(11, 'COSC', '4XXX-ELEC-2', 'CS Advanced Elective 2',                    3),
+(12, 'COSC', '4XXX-ELEC-3', 'CS Advanced Elective 3',                    3),
+(13, 'COSC', '4XXX-ELEC-4', 'CS Advanced Elective 4',                    3),
+(14, 'COSC', '4XXX-ELEC-5', 'CS Advanced Elective 5',                    3),
 -- Math
 (15, 'MATH', '2413',        'Calculus I',                                 4),
 (16, 'MATH', '2414',        'Calculus II',                                4),

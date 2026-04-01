@@ -62,6 +62,9 @@ public class Student
     @Column(name = "capstone_choice", length = 20)
     private String capstoneChoice = "SENIOR_SE";
 
+    @Column(name = "free_elective_credits", nullable = false)
+    private Integer freeElectiveCredits = 0;
+
     @Column(name = "created_at", insertable=false, updatable=false)
     private LocalDateTime createdAt;
 

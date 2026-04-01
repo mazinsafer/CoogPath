@@ -31,6 +31,7 @@ export default function CoursesPage() {
   const [capstoneChoice, setCapstoneChoice] = useState("SENIOR_SE");
   const [includeSummer, setIncludeSummer] = useState(false);
   const [startSemester, setStartSemester] = useState("");
+  const [freeElectiveCredits, setFreeElectiveCredits] = useState(0);
 
   useEffect(() => {
     const id = localStorage.getItem("studentId");
@@ -58,6 +59,9 @@ export default function CoursesPage() {
       else if (m < 8) setStartSemester(`FALL-${y}`);
       else setStartSemester(`SPRING-${y + 1}`);
     }
+
+    const savedFEC = localStorage.getItem("freeElectiveCredits");
+    if (savedFEC) setFreeElectiveCredits(Number(savedFEC));
 
     setLoading(true);
     Promise.all([
@@ -139,6 +143,13 @@ export default function CoursesPage() {
 
       localStorage.setItem("includeSummer", String(includeSummer));
       localStorage.setItem("startSemester", startSemester);
+      localStorage.setItem("freeElectiveCredits", String(freeElectiveCredits));
+
+      await fetch(apiUrl(`/students/${studentId}/free-elective-credits`), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ freeElectiveCredits }),
+      });
 
       if (selectedIds.size > 0) {
         const res = await fetch(apiUrl(`/students/${studentId}/courses`), {
@@ -247,6 +258,26 @@ export default function CoursesPage() {
               </button>
               <span className="text-xs text-zinc-400">Include summer semesters</span>
             </div>
+          </div>
+        </div>
+
+        {/* Free Elective Credits */}
+        <div className="mb-8 p-5 rounded-xl bg-[#111] border border-[#1e1e1e]">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-1">Free Elective Credits</h2>
+          <p className="text-xs text-zinc-500 mb-4">
+            If you&apos;ve already earned free elective credits (AP, dual credit, transfer, etc.), enter the total here.
+            This reduces the number of free elective slots on your roadmap.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={30}
+              value={freeElectiveCredits}
+              onChange={(e) => setFreeElectiveCredits(Math.max(0, Math.min(30, Number(e.target.value) || 0)))}
+              className="w-24 bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-[#c8102e] transition-colors"
+            />
+            <span className="text-xs text-zinc-400">credit hours</span>
           </div>
         </div>
 

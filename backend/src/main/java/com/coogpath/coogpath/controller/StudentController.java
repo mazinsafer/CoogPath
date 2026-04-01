@@ -84,6 +84,18 @@ public class StudentController {
         return ResponseEntity.ok(Map.of("capstoneChoice", choice));
     }
 
+    @PatchMapping("/{studentId}/free-elective-credits")
+    public ResponseEntity<?> updateFreeElectiveCredits(
+            @PathVariable Long studentId,
+            @RequestBody Map<String, Integer> body) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+        Integer credits = body.get("freeElectiveCredits");
+        student.setFreeElectiveCredits(credits != null ? credits : 0);
+        studentRepository.save(student);
+        return ResponseEntity.ok(Map.of("freeElectiveCredits", student.getFreeElectiveCredits()));
+    }
+
     @GetMapping("/{studentId}/courses")
     public ResponseEntity<?> getCompletedCourses(@PathVariable Long studentId) {
         studentRepository.findById(studentId)

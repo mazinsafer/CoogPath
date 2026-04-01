@@ -127,6 +127,8 @@ CREATE TABLE student (
     max_credits_spring INT     NOT NULL DEFAULT 15,
     max_credits_summer INT     NOT NULL DEFAULT 6,
     include_summer     BOOLEAN NOT NULL DEFAULT FALSE,
+    capstone_choice    VARCHAR(20) DEFAULT 'SENIOR_SE',
+    free_elective_credits INT NOT NULL DEFAULT 0,
     created_at         TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (program_id) REFERENCES degree_program(program_id)
 );
