@@ -60,35 +60,6 @@ coogpath/
 └── package.json                    # Monorepo scripts (concurrently)
 ```
 
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Authenticate student |
-| POST | `/api/students/register` | Register new student |
-
-### Student
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/students/{id}/courses` | Get completed course IDs |
-| POST | `/api/students/{id}/courses` | Sync completed courses |
-| GET | `/api/students/{id}/transcript` | Get transcript records |
-| PATCH | `/api/students/{id}/capstone` | Update capstone/minor choice |
-| PATCH | `/api/students/{id}/free-elective-credits` | Update free elective credits |
-
-### Planning
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/plan/generate/{id}` | Generate degree roadmap |
-| GET | `/api/requirements/{id}` | Get requirement progress |
-
-### Reference Data
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/programs` | List all degree programs |
-| GET | `/api/courses` | List all courses |
-
 ## Getting Started
 
 ### Prerequisites
