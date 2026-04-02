@@ -547,8 +547,6 @@ public class PlanGeneratorService
 
         String choice = student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE";
 
-        RequirementGroup freeElectivesGroup = null;
-
         for (RequirementGroup group : groups) 
         {
             String gName = group.getName();
@@ -556,37 +554,32 @@ public class PlanGeneratorService
             if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.contains("Math Minor"))) continue;
             if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
 
-            if (gName.contains("Free Elective")) {
-                freeElectivesGroup = group;
-                continue;
-            }
+            if (gName.contains("Free Elective")) continue;
 
             addGroupCourses(group, completedCourseIds, seenCourseIds, remainingCourses);
         }
 
-        // Only add enough free electives to reach totalRequired (120)
-        if (freeElectivesGroup != null) {
-            int completedCredits = courseRepository.findAllById(completedCourseIds).stream()
-                    .mapToInt(Course::getCredits).sum();
-            int selfReportedFreeElectives = student.getFreeElectiveCredits() != null ? student.getFreeElectiveCredits() : 0;
-            int remainingCredits = remainingCourses.stream().mapToInt(Course::getCredits).sum();
-            int totalRequired = student.getDegreeProgram().getTotalCreditsRequired();
+        // Dynamically fill free elective slots to reach totalRequired (120)
+        int completedCredits = courseRepository.findAllById(completedCourseIds).stream()
+                .mapToInt(Course::getCredits).sum();
+        int selfReportedFreeElectives = student.getFreeElectiveCredits() != null ? student.getFreeElectiveCredits() : 0;
+        int remainingCredits = remainingCourses.stream().mapToInt(Course::getCredits).sum();
+        int totalRequired = student.getDegreeProgram().getTotalCreditsRequired();
 
-            int deficit = totalRequired - (completedCredits + selfReportedFreeElectives + remainingCredits);
-            if (deficit > 0) {
-                List<RequirementItem> freeItems = requirementItemRepository
-                        .findByRequirementGroupGroupId(freeElectivesGroup.getGroupId());
-                int added = 0;
-                for (RequirementItem item : freeItems) {
-                    if (added >= deficit) break;
-                    if (item.getCourse() != null) {
-                        Long cid = item.getCourse().getCourseId();
-                        if (!completedCourseIds.contains(cid) && seenCourseIds.add(cid)) {
-                            remainingCourses.add(item.getCourse());
-                            added += item.getCourse().getCredits();
-                        }
-                    }
-                }
+        int deficit = totalRequired - (completedCredits + selfReportedFreeElectives + remainingCredits);
+        if (deficit > 0) {
+            int slotNum = 1;
+            while (deficit > 0) {
+                int cr = Math.min(3, deficit);
+                Course freeElective = new Course();
+                freeElective.setCourseId(-1000L - slotNum);
+                freeElective.setSubject("ELEC");
+                freeElective.setNumber("FREE-" + cr + "HR-" + slotNum);
+                freeElective.setTitle("Free Elective (" + cr + " cr)");
+                freeElective.setCredits(cr);
+                remainingCourses.add(freeElective);
+                deficit -= cr;
+                slotNum++;
             }
         }
 
