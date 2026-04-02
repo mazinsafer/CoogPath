@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import com.coogpath.coogpath.dto.StudentRegistrationDTO;
 import com.coogpath.coogpath.model.Course;
 import com.coogpath.coogpath.model.Student;
@@ -107,6 +109,7 @@ public class StudentController {
         return ResponseEntity.ok(courseIds);
     }
 
+    @Transactional
     @PostMapping("/{studentId}/courses")
     public ResponseEntity<?> saveCompletedCourses(
             @PathVariable Long studentId,
@@ -114,21 +117,18 @@ public class StudentController {
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
-        List<StudentCourse> existing = studentCourseRepository.findByStudentStudentId(studentId);
-        java.util.Set<Long> existingIds = existing.stream()
-                .map(sc -> sc.getCourse().getCourseId())
-                .collect(java.util.stream.Collectors.toSet());
-
-        // Remove courses that were deselected
-        for (StudentCourse sc : existing) {
-            if (!courseIds.contains(sc.getCourse().getCourseId())) {
-                studentCourseRepository.delete(sc);
-            }
+        java.util.Set<Long> selectedSet = new java.util.HashSet<>();
+        for (Object raw : courseIds) {
+            selectedSet.add(((Number) raw).longValue());
         }
 
-        // Add newly selected courses
-        for (Long courseId : courseIds) {
-            if (existingIds.contains(courseId)) continue;
+        List<StudentCourse> existing = studentCourseRepository.findByStudentStudentId(studentId);
+
+        // Remove ALL existing records, then re-add only the selected ones
+        studentCourseRepository.deleteAll(existing);
+        studentCourseRepository.flush();
+
+        for (Long courseId : selectedSet) {
             Course course = courseRepository.findById(courseId)
                     .orElseThrow(() -> new IllegalArgumentException("Course not found: " + courseId));
 
@@ -142,6 +142,6 @@ public class StudentController {
             studentCourseRepository.save(sc);
         }
 
-        return ResponseEntity.ok(Map.of("saved", courseIds.size()));
+        return ResponseEntity.ok(Map.of("saved", selectedSet.size()));
     }
 }
