@@ -1,5 +1,13 @@
 # CoogPath
 
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0-6DB33F?logo=springboot&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 AI-powered degree planning for University of Houston students. CoogPath helps students build personalized semester-by-semester roadmaps to graduation based on their completed coursework, degree requirements, and scheduling preferences.
 
 ## Features
