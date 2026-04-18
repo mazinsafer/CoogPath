@@ -327,6 +327,24 @@ public class PlanGeneratorService
     }
 
     /**
+     * Maps a finance_track key (STANDARD/RE/PFP/CBC/GEM/ECTC) to the human-readable
+     * track suffix used in requirement_group names ("Finance Track: <suffix>").
+     */
+    private String financeTrackDisplayName(String track) {
+        if (track == null) return "Standard";
+        switch (track) {
+            case "RE":   return "Real Estate";
+            case "PFP":  return "Personal Financial Planning";
+            case "CBC":  return "Corporate Banking and Credit";
+            case "GEM":  return "Global Energy Management";
+            case "ECTC": return "Energy Commodities Trading and Consulting";
+            case "STANDARD":
+            default:
+                return "Standard";
+        }
+    }
+
+    /**
      * Summer priority: lower number = picked first.
      * 0 = non-CS/non-MATH (gen-ed, electives)
      * 1 = MATH below 3000
@@ -547,12 +565,33 @@ public class PlanGeneratorService
 
         String choice = student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE";
 
-        for (RequirementGroup group : groups) 
+        Long programId = student.getDegreeProgram() != null ? student.getDegreeProgram().getProgramId() : null;
+        boolean isCSProgram = programId != null && programId == 1L;
+        boolean isFinanceProgram = programId != null && programId == 2L;
+
+        String financeTrack = student.getFinanceTrack() != null ? student.getFinanceTrack() : "STANDARD";
+        String wantedFinanceTrackName = financeTrackDisplayName(financeTrack);
+        boolean wantsMathMinorAddOn = student.isMathMinor();
+
+        for (RequirementGroup group : groups)
         {
             String gName = group.getName();
-            if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.contains("Math Minor"))) continue;
-            if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.contains("Math Minor"))) continue;
-            if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
+
+            // ----- CS major filtering (capstone choice) -----
+            if (isCSProgram) {
+                if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.equals("Math Minor"))) continue;
+                if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.equals("Math Minor"))) continue;
+                if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
+            }
+
+            // ----- Finance major filtering (track + optional math minor) -----
+            if (isFinanceProgram) {
+                if (gName.startsWith("Finance Track:")) {
+                    String groupTrackName = gName.substring("Finance Track:".length()).trim();
+                    if (!groupTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                }
+                if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
+            }
 
             if (gName.contains("Free Elective")) continue;
 

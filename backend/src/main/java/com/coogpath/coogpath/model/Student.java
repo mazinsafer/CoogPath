@@ -62,6 +62,14 @@ public class Student
     @Column(name = "capstone_choice", length = 20)
     private String capstoneChoice = "SENIOR_SE";
 
+    // Track choice for Finance majors. Allowed: STANDARD, RE, PFP, CBC, GEM, ECTC
+    @Column(name = "finance_track", length = 20)
+    private String financeTrack = "STANDARD";
+
+    // Optional Math Minor add-on for Finance majors (additive, on top of any track)
+    @Column(name = "math_minor", nullable = false)
+    private boolean mathMinor = false;
+
     @Column(name = "free_elective_credits", nullable = false)
     private Integer freeElectiveCredits = 0;
 

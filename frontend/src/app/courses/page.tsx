@@ -19,6 +19,15 @@ const CAPSTONE_OPTIONS = [
   { value: "MATH_MINOR", label: "Math Minor", desc: "18 credits of math courses (some overlap with CS requirements)" },
 ];
 
+const FINANCE_TRACK_OPTIONS = [
+  { value: "STANDARD", label: "Standard", desc: "12 credits of upper-division finance electives" },
+  { value: "RE",       label: "Real Estate", desc: "Real Estate Finance, Valuation, Development, and Asset Management" },
+  { value: "PFP",      label: "Personal Financial Planning", desc: "Financial planning, retirement & estate, risk management, tax" },
+  { value: "CBC",      label: "Corporate Banking & Credit", desc: "Intermediate Accounting + Bank Mgmt, Financial Eval, Credit Analysis" },
+  { value: "GEM",      label: "Global Energy Management", desc: "Intl Finance, Energy Trading, Value Chain + GEM electives" },
+  { value: "ECTC",     label: "Energy Commodities Trading & Consulting", desc: "Internship/Experiential Learning + 5 ECT&C electives" },
+];
+
 export default function CoursesPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -28,7 +37,10 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isCSMajor, setIsCSMajor] = useState(false);
+  const [isFinanceMajor, setIsFinanceMajor] = useState(false);
   const [capstoneChoice, setCapstoneChoice] = useState("SENIOR_SE");
+  const [financeTrack, setFinanceTrack] = useState("STANDARD");
+  const [mathMinor, setMathMinor] = useState(false);
   const [includeSummer, setIncludeSummer] = useState(false);
   const [startSemester, setStartSemester] = useState("");
   const [freeElectiveCredits, setFreeElectiveCredits] = useState(0);
@@ -40,10 +52,18 @@ export default function CoursesPage() {
       return;
     }
     const programName = localStorage.getItem("programName") || "";
-    setIsCSMajor(programName.toLowerCase().includes("computer science"));
+    const lowerProgram = programName.toLowerCase();
+    setIsCSMajor(lowerProgram.includes("computer science"));
+    setIsFinanceMajor(lowerProgram.includes("finance"));
 
     const savedCapstone = localStorage.getItem("capstoneChoice");
     if (savedCapstone) setCapstoneChoice(savedCapstone);
+
+    const savedTrack = localStorage.getItem("financeTrack");
+    if (savedTrack) setFinanceTrack(savedTrack);
+
+    const savedMathMinor = localStorage.getItem("mathMinor");
+    if (savedMathMinor) setMathMinor(savedMathMinor === "true");
 
     const savedSummer = localStorage.getItem("includeSummer");
     if (savedSummer) setIncludeSummer(savedSummer === "true");
@@ -141,6 +161,21 @@ export default function CoursesPage() {
         localStorage.setItem("capstoneChoice", capstoneChoice);
       }
 
+      if (isFinanceMajor) {
+        await fetch(apiUrl(`/students/${studentId}/finance-track`), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ financeTrack }),
+        });
+        await fetch(apiUrl(`/students/${studentId}/math-minor`), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mathMinor }),
+        });
+        localStorage.setItem("financeTrack", financeTrack);
+        localStorage.setItem("mathMinor", String(mathMinor));
+      }
+
       localStorage.setItem("includeSummer", String(includeSummer));
       localStorage.setItem("startSemester", startSemester);
       localStorage.setItem("freeElectiveCredits", String(freeElectiveCredits));
@@ -226,6 +261,63 @@ export default function CoursesPage() {
                   <p className="text-[11px] text-zinc-500 ml-6">{opt.desc}</p>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Finance Track Selection (Finance majors only) */}
+        {isFinanceMajor && (
+          <div className="mb-8 p-5 rounded-xl bg-[#111] border border-[#1e1e1e]">
+            <h2 className="text-sm font-semibold text-zinc-200 mb-1">Finance Track</h2>
+            <p className="text-xs text-zinc-500 mb-4">
+              As a Finance major, choose one of the six BBA Finance tracks. Your roadmap will include the
+              required courses for that track.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {FINANCE_TRACK_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFinanceTrack(opt.value)}
+                  className={`text-left p-4 rounded-lg border transition-all ${
+                    financeTrack === opt.value
+                      ? "bg-[#c8102e]/10 border-[#c8102e]/40"
+                      : "bg-[#0a0a0a] border-[#222] hover:border-[#333]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      financeTrack === opt.value ? "border-[#c8102e]" : "border-[#333]"
+                    }`}>
+                      {financeTrack === opt.value && <div className="w-2 h-2 bg-[#c8102e] rounded-full" />}
+                    </div>
+                    <span className="text-sm font-medium">{opt.label}</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 ml-6">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+
+            {/* Math Minor add-on for Finance majors */}
+            <div className="mt-5 pt-4 border-t border-[#1e1e1e]">
+              <div className="flex items-start gap-3">
+                <button
+                  onClick={() => setMathMinor(!mathMinor)}
+                  className={`mt-0.5 w-10 h-5 rounded-full transition-colors relative shrink-0 ${
+                    mathMinor ? "bg-[#c8102e]" : "bg-[#222]"
+                  }`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${
+                    mathMinor ? "translate-x-5" : "translate-x-0.5"
+                  }`} />
+                </button>
+                <div>
+                  <div className="text-sm font-medium text-zinc-200">Add Math Minor</div>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    Adds 18 credits of math (Calculus I & II + four 3000+/4000+ math electives)
+                    on top of your selected Finance track.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
