@@ -55,6 +55,31 @@ public class StudentController {
         }
     }
 
+    @GetMapping("/{studentId}")
+    public ResponseEntity<?> getStudent(@PathVariable Long studentId) {
+        Student student = studentRepository.findById(studentId).orElse(null);
+        if (student == null) {
+            return ResponseEntity.status(404).body("Student not found");
+        }
+        Map<String, Object> body = new HashMap<>();
+        body.put("studentId", student.getStudentId());
+        body.put("name", student.getName());
+        body.put("email", student.getEmail());
+        if (student.getDegreeProgram() != null) {
+            body.put("programId", student.getDegreeProgram().getProgramId());
+            body.put("programName", student.getDegreeProgram().getName());
+        } else {
+            body.put("programId", null);
+            body.put("programName", null);
+        }
+        body.put("capstoneChoice", student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE");
+        body.put("financeTrack", student.getFinanceTrack() != null ? student.getFinanceTrack() : "STANDARD");
+        body.put("mathMinor", student.isMathMinor());
+        body.put("freeElectiveCredits", student.getFreeElectiveCredits() != null ? student.getFreeElectiveCredits() : 0);
+        body.put("includeSummer", student.isIncludeSummer());
+        return ResponseEntity.ok(body);
+    }
+
     @GetMapping("/{studentId}/transcript")
     public List<Map<String, Object>> getTranscript(@PathVariable Long studentId) {
         List<StudentCourse> records = studentCourseRepository.findByStudentStudentId(studentId);

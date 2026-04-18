@@ -51,17 +51,16 @@ export default function CoursesPage() {
       router.push("/signup");
       return;
     }
-    const programName = localStorage.getItem("programName") || "";
-    const lowerProgram = programName.toLowerCase();
-    setIsCSMajor(lowerProgram.includes("computer science"));
-    setIsFinanceMajor(lowerProgram.includes("finance"));
 
+    const cachedProgramName = (localStorage.getItem("programName") || "").toLowerCase();
+    if (cachedProgramName) {
+      setIsCSMajor(cachedProgramName.includes("computer science"));
+      setIsFinanceMajor(cachedProgramName.includes("finance"));
+    }
     const savedCapstone = localStorage.getItem("capstoneChoice");
     if (savedCapstone) setCapstoneChoice(savedCapstone);
-
     const savedTrack = localStorage.getItem("financeTrack");
     if (savedTrack) setFinanceTrack(savedTrack);
-
     const savedMathMinor = localStorage.getItem("mathMinor");
     if (savedMathMinor) setMathMinor(savedMathMinor === "true");
 
@@ -87,10 +86,24 @@ export default function CoursesPage() {
     Promise.all([
       fetch(apiUrl("/courses")).then((r) => r.json()),
       fetch(apiUrl(`/students/${id}/courses`)).then((r) => r.json()).catch(() => []),
-    ]).then(([allCourses, savedIds]: [Course[], number[]]) => {
+      fetch(apiUrl(`/students/${id}`)).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]).then(([allCourses, savedIds, studentInfo]: [Course[], number[], { programId?: number; programName?: string; capstoneChoice?: string; financeTrack?: string; mathMinor?: boolean; freeElectiveCredits?: number; includeSummer?: boolean } | null]) => {
       setCourses(allCourses.filter((c: Course) => c.subject !== "ELEC"));
       if (Array.isArray(savedIds) && savedIds.length > 0) {
         setSelectedIds(new Set(savedIds));
+      }
+      // Use authoritative student state from backend if available
+      if (studentInfo) {
+        const pid = studentInfo.programId;
+        const pname = (studentInfo.programName || "").toLowerCase();
+        setIsCSMajor(pid === 1 || pname.includes("computer science"));
+        setIsFinanceMajor(pid === 2 || pname.includes("finance"));
+        if (studentInfo.capstoneChoice) setCapstoneChoice(studentInfo.capstoneChoice);
+        if (studentInfo.financeTrack) setFinanceTrack(studentInfo.financeTrack);
+        if (typeof studentInfo.mathMinor === "boolean") setMathMinor(studentInfo.mathMinor);
+        if (typeof studentInfo.freeElectiveCredits === "number") setFreeElectiveCredits(studentInfo.freeElectiveCredits);
+        if (typeof studentInfo.includeSummer === "boolean") setIncludeSummer(studentInfo.includeSummer);
+        if (studentInfo.programName) localStorage.setItem("programName", studentInfo.programName);
       }
       setLoading(false);
     }).catch(() => setLoading(false));
