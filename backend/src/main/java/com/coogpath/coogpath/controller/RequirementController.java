@@ -54,12 +54,31 @@ public class RequirementController {
 
         String choice = student.getCapstoneChoice() != null ? student.getCapstoneChoice() : "SENIOR_SE";
 
+        Long programId = student.getDegreeProgram() != null ? student.getDegreeProgram().getProgramId() : null;
+        boolean isCSProgram = programId != null && programId == 1L;
+        boolean isFinanceProgram = programId != null && programId == 2L;
+
+        String financeTrack = student.getFinanceTrack() != null ? student.getFinanceTrack() : "STANDARD";
+        String wantedFinanceTrackName = financeTrackDisplayName(financeTrack);
+        boolean wantsMathMinorAddOn = student.isMathMinor();
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (RequirementGroup group : groups) {
             String gName = group.getName();
-            if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.contains("Math Minor"))) continue;
-            if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.contains("Math Minor"))) continue;
-            if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
+
+            if (isCSProgram) {
+                if (choice.equals("SENIOR_SE") && (gName.contains("Data Science") || gName.equals("Math Minor"))) continue;
+                if (choice.equals("SENIOR_DS") && (gName.contains("Software Engineering") || gName.equals("Math Minor"))) continue;
+                if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
+            }
+
+            if (isFinanceProgram) {
+                if (gName.startsWith("Finance Track:")) {
+                    String groupTrackName = gName.substring("Finance Track:".length()).trim();
+                    if (!groupTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                }
+                if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
+            }
 
             List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
 
@@ -111,5 +130,19 @@ public class RequirementController {
             result.add(groupMap);
         }
         return result;
+    }
+
+    private String financeTrackDisplayName(String track) {
+        if (track == null) return "Standard";
+        switch (track) {
+            case "RE":   return "Real Estate";
+            case "PFP":  return "Personal Financial Planning";
+            case "CBC":  return "Corporate Banking and Credit";
+            case "GEM":  return "Global Energy Management";
+            case "ECTC": return "Energy Commodities Trading and Consulting";
+            case "STANDARD":
+            default:
+                return "Standard";
+        }
     }
 }

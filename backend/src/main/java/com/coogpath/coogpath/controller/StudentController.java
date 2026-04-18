@@ -86,6 +86,39 @@ public class StudentController {
         return ResponseEntity.ok(Map.of("capstoneChoice", choice));
     }
 
+    @PatchMapping("/{studentId}/finance-track")
+    public ResponseEntity<?> updateFinanceTrack(
+            @PathVariable Long studentId,
+            @RequestBody Map<String, String> body) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+        String track = body.get("financeTrack");
+        if (track == null
+                || (!track.equals("STANDARD")
+                && !track.equals("RE")
+                && !track.equals("PFP")
+                && !track.equals("CBC")
+                && !track.equals("GEM")
+                && !track.equals("ECTC"))) {
+            return ResponseEntity.badRequest().body("Invalid finance track");
+        }
+        student.setFinanceTrack(track);
+        studentRepository.save(student);
+        return ResponseEntity.ok(Map.of("financeTrack", track));
+    }
+
+    @PatchMapping("/{studentId}/math-minor")
+    public ResponseEntity<?> updateMathMinor(
+            @PathVariable Long studentId,
+            @RequestBody Map<String, Boolean> body) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+        Boolean wantMinor = body.get("mathMinor");
+        student.setMathMinor(Boolean.TRUE.equals(wantMinor));
+        studentRepository.save(student);
+        return ResponseEntity.ok(Map.of("mathMinor", student.isMathMinor()));
+    }
+
     @PatchMapping("/{studentId}/free-elective-credits")
     public ResponseEntity<?> updateFreeElectiveCredits(
             @PathVariable Long studentId,
