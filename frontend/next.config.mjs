@@ -1,16 +1,16 @@
 import path from "node:path";
-import type { NextConfig } from "next";
+import { fileURLToPath } from "node:url";
 
-function normalizeBasePath(value?: string) {
-  if (!value || value === "/") {
-    return "";
-  }
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
+function normalizeBasePath(value) {
+  if (!value || value === "/") return "";
   const withLeadingSlash = value.startsWith("/") ? value : `/${value}`;
   return withLeadingSlash.replace(/\/+$/, "");
 }
 
-function normalizeOrigin(value?: string) {
+function normalizeOrigin(value) {
   return value?.replace(/\/+$/, "");
 }
 
@@ -20,14 +20,12 @@ const backendUrl =
   normalizeOrigin(process.env.NEXT_PUBLIC_API_URL) ??
   (process.env.NODE_ENV === "development" ? "http://localhost:8080" : undefined);
 
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   basePath,
   outputFileTracingRoot: path.join(__dirname, ".."),
   async rewrites() {
-    if (!backendUrl) {
-      return [];
-    }
-
+    if (!backendUrl) return [];
     return [
       {
         source: "/api/:path*",

@@ -77,6 +77,10 @@ public class RequirementController {
                     String groupTrackName = gName.substring("Finance Track:".length()).trim();
                     if (!groupTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
                 }
+                if (gName.startsWith("Finance Bauer Electives:")) {
+                    String electiveTrackName = gName.substring("Finance Bauer Electives:".length()).trim();
+                    if (!electiveTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                }
                 if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
             }
 

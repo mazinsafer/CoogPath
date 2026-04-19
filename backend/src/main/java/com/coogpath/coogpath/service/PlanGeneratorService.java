@@ -82,6 +82,13 @@ public class PlanGeneratorService
         boolean useSummer = includeSummer != null ? includeSummer : student.isIncludeSummer();
         String planMode = mode != null ? mode : "fastest";
 
+        // Each major has a "core subject" we want to spread across every term so a
+        // student is always making progress on their major (CS -> COSC, Finance -> FINA).
+        Long programIdForRule = student.getDegreeProgram() != null
+                ? student.getDegreeProgram().getProgramId() : null;
+        String requiredSubject = "COSC"; // default to CS so existing behavior is preserved
+        if (programIdForRule != null && programIdForRule == 2L) requiredSubject = "FINA";
+
         // Phase 1: Schedule into raw buckets (Course objects, not DTOs yet)
         List<String> termLabels = new ArrayList<>();
         List<String> termSeasons = new ArrayList<>();
@@ -142,9 +149,13 @@ public class PlanGeneratorService
             if (isSummer) {
                 selectedCourses = selectGreedy(eligible, maxCredits);
             } else if (isFastest) {
-                selectedCourses = selectFastestWithMinCS(eligible, maxCredits);
-            } else {
+                selectedCourses = selectFastestWithMinSubject(eligible, maxCredits, requiredSubject);
+            } else if ("COSC".equals(requiredSubject)) {
+                // CS majors keep the STEM-cap balanced rule.
                 selectedCourses = selectWithStemLimits(eligible, maxCredits, 3);
+            } else {
+                // Finance (and any future non-CS majors) -- no STEM cap, just guarantee 1 major-subject course.
+                selectedCourses = selectFastestWithMinSubject(eligible, maxCredits, requiredSubject);
             }
 
             if (selectedCourses.isEmpty() && !eligible.isEmpty()) 
@@ -326,6 +337,10 @@ public class PlanGeneratorService
         return "COSC".equals(c.getSubject());
     }
 
+    private boolean isPreferredSubject(Course c, String requiredSubject) {
+        return requiredSubject != null && requiredSubject.equals(c.getSubject());
+    }
+
     /**
      * Maps a finance_track key (STANDARD/RE/PFP/CBC/GEM/ECTC) to the human-readable
      * track suffix used in requirement_group names ("Finance Track: <suffix>").
@@ -376,28 +391,31 @@ public class PlanGeneratorService
     }
 
     /**
-     * Fastest mode: pure greedy — pack as many credits as possible, guarantee min 1 CS.
+     * Fastest mode: pure greedy — pack as many credits as possible, guarantee min 1
+     * course of the major's "core" subject (COSC for CS, FINA for Finance, etc.).
      * No STEM cap. Sorts by priority score already, just greedily fills up to maxCredits.
      */
-    private List<Course> selectFastestWithMinCS(List<Course> eligible, int maxCredits)
+    private List<Course> selectFastestWithMinSubject(List<Course> eligible, int maxCredits, String requiredSubject)
     {
         List<Course> selected = new ArrayList<>();
         int creditsSoFar = 0;
 
-        // First, guarantee at least 1 CS course
-        Course firstCS = null;
-        for (Course c : eligible) {
-            if (isCS(c) && creditsSoFar + c.getCredits() <= maxCredits) {
-                firstCS = c;
-                break;
+        // First, guarantee at least 1 course of the required subject (when one is eligible).
+        if (requiredSubject != null) {
+            Course firstPreferred = null;
+            for (Course c : eligible) {
+                if (isPreferredSubject(c, requiredSubject) && creditsSoFar + c.getCredits() <= maxCredits) {
+                    firstPreferred = c;
+                    break;
+                }
+            }
+            if (firstPreferred != null) {
+                selected.add(firstPreferred);
+                creditsSoFar += firstPreferred.getCredits();
             }
         }
-        if (firstCS != null) {
-            selected.add(firstCS);
-            creditsSoFar += firstCS.getCredits();
-        }
 
-        // Greedily fill remaining credits with anything that fits
+        // Greedily fill remaining credits with anything that fits.
         for (Course c : eligible) {
             if (selected.contains(c)) continue;
             if (creditsSoFar + c.getCredits() <= maxCredits) {
@@ -589,6 +607,10 @@ public class PlanGeneratorService
                 if (gName.startsWith("Finance Track:")) {
                     String groupTrackName = gName.substring("Finance Track:".length()).trim();
                     if (!groupTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                }
+                if (gName.startsWith("Finance Bauer Electives:")) {
+                    String electiveTrackName = gName.substring("Finance Bauer Electives:".length()).trim();
+                    if (!electiveTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
                 }
                 if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
             }
