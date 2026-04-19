@@ -11,6 +11,8 @@ target/
 
 # Environment variables
 .env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
@@ -45,3 +47,21 @@ build/
 
 # Spring Boot properties (contains secrets)
 application.properties
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Office / OS junk
+~$*
+.~lock.*
+Thumbs.db
