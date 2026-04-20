@@ -5,11 +5,11 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- =======================================================
--- 1. ADD capstone_choice COLUMN TO STUDENT (idempotent)
--- Note: V1 already creates this column; the IF NOT EXISTS
--- guard lets V4 run cleanly against fresh databases too.
+-- 1. capstone_choice COLUMN
+-- Already created in V1 (student table definition);
+-- intentionally no ALTER here so this migration works
+-- against both legacy and fresh databases.
 -- =======================================================
-ALTER TABLE student ADD COLUMN IF NOT EXISTS capstone_choice VARCHAR(20) DEFAULT 'SENIOR_SE';
 
 -- =======================================================
 -- 2. NEW COURSES
