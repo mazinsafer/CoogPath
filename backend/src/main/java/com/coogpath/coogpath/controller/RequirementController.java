@@ -72,6 +72,7 @@ public class RequirementController {
                 if (choice.equals("MATH_MINOR") && (gName.contains("Software Engineering") || gName.contains("Data Science"))) continue;
             }
 
+            boolean isBauerElectivesGroup = false;
             if (isFinanceProgram) {
                 if (gName.startsWith("Finance Track:")) {
                     String groupTrackName = gName.substring("Finance Track:".length()).trim();
@@ -80,9 +81,16 @@ public class RequirementController {
                 if (gName.startsWith("Finance Bauer Electives:")) {
                     String electiveTrackName = gName.substring("Finance Bauer Electives:".length()).trim();
                     if (!electiveTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                    isBauerElectivesGroup = true;
                 }
                 if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
             }
+
+            // When math minor is enrolled, the 6 minor courses satisfy the
+            // ELEC-subject placeholders (ADV-ELEC / GEN-ELEC) in the Bauer
+            // Electives group. Drop them here so Requirements page matches
+            // the roadmap and doesn't double-count.
+            boolean dropElecPlaceholders = isBauerElectivesGroup && wantsMathMinorAddOn;
 
             List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
 
@@ -92,6 +100,7 @@ public class RequirementController {
 
             for (RequirementItem item : items) {
                 if (item.getCourse() != null) {
+                    if (dropElecPlaceholders && "ELEC".equals(item.getCourse().getSubject())) continue;
                     int cr = item.getCourse().getCredits();
                     totalCredits += cr;
                     boolean done = completedIds.contains(item.getCourse().getCourseId());
@@ -107,6 +116,7 @@ public class RequirementController {
                     List<CourseSetCourse> setCourses = courseSetCourseRepository.findByCourseSetCourseSetId(
                             item.getCourseSet().getCourseSetId());
                     if (!setCourses.isEmpty()) {
+                        if (dropElecPlaceholders && "ELEC".equals(setCourses.get(0).getCourse().getSubject())) continue;
                         int cr = setCourses.get(0).getCourse().getCredits();
                         totalCredits += cr;
                         boolean done = setCourses.stream()
