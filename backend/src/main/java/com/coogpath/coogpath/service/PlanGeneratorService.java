@@ -186,8 +186,12 @@ public class PlanGeneratorService
             }
         }
 
-        // Phase 2: Consolidate runt trailing semesters (≤ 2 courses)
-        consolidateTrailingRunts(termBuckets, termLabels, termSeasons, termYears);
+        // Phase 2: Consolidate runt trailing semesters (≤ 2 courses).
+        // Pass the mode-specific fall/spring credit cap so consolidation
+        // never exceeds the student's selected preference (e.g. Balanced
+        // stays ≤ 16 credits per term even while absorbing a runt).
+        int fallSpringCap = isFastest ? 18 : 16;
+        consolidateTrailingRunts(termBuckets, termLabels, termSeasons, termYears, fallSpringCap);
 
         // Phase 3: Convert buckets to PlannedTerm DTOs
         for (int i = 0; i < termBuckets.size(); i++) 
@@ -229,7 +233,8 @@ public class PlanGeneratorService
      * semester or redistributing courses to balance both semesters.
      */
     private void consolidateTrailingRunts(List<List<Course>> buckets, List<String> labels,
-                                           List<String> seasons, List<Integer> years) 
+                                           List<String> seasons, List<Integer> years,
+                                           int fallSpringCap) 
     {
         if (buckets.size() < 2) return;
 
@@ -254,7 +259,7 @@ public class PlanGeneratorService
         {
             boolean dependsOnPrev = courseHasPrereqInSet(c.getCourseId(), prevCourseIds);
 
-            if (!dependsOnPrev && prevCredits + c.getCredits() <= 19) {
+            if (!dependsOnPrev && prevCredits + c.getCredits() <= fallSpringCap) {
                 prevTerm.add(c);
                 prevCredits += c.getCredits();
                 merged.add(c);
@@ -295,7 +300,7 @@ public class PlanGeneratorService
         while (lastTerm.size() < targetPerTerm && !movable.isEmpty()) 
         {
             Course toMove = movable.remove(0);
-            if (lastCredits + toMove.getCredits() <= 19) {
+            if (lastCredits + toMove.getCredits() <= fallSpringCap) {
                 prevTerm.remove(toMove);
                 lastTerm.add(toMove);
                 lastCredits += toMove.getCredits();
@@ -603,6 +608,7 @@ public class PlanGeneratorService
             }
 
             // ----- Finance major filtering (track + optional math minor) -----
+            boolean isBauerElectivesGroup = false;
             if (isFinanceProgram) {
                 if (gName.startsWith("Finance Track:")) {
                     String groupTrackName = gName.substring("Finance Track:".length()).trim();
@@ -611,13 +617,26 @@ public class PlanGeneratorService
                 if (gName.startsWith("Finance Bauer Electives:")) {
                     String electiveTrackName = gName.substring("Finance Bauer Electives:".length()).trim();
                     if (!electiveTrackName.equalsIgnoreCase(wantedFinanceTrackName)) continue;
+                    isBauerElectivesGroup = true;
                 }
                 if (gName.equals("Finance Math Minor") && !wantsMathMinorAddOn) continue;
             }
 
             if (gName.contains("Free Elective")) continue;
 
-            addGroupCourses(group, completedCourseIds, seenCourseIds, remainingCourses);
+            // Bauer electives hold three kinds of placeholders:
+            //   BUSI ADV-BUS-ELEC-*  (must be a Business course — minor can't fill)
+            //   ELEC ADV-ELEC-*      (3000-4000 any subject  — minor math DOES fill)
+            //   ELEC GEN-ELEC-*      (1000-4000 any subject  — minor math DOES fill)
+            // If the student is doing the Math minor, the 6 minor courses
+            // cover the ELEC-subject placeholders. Skip those items here so
+            // the roadmap doesn't double-count them.
+            if (isBauerElectivesGroup && wantsMathMinorAddOn) {
+                addGroupCoursesFiltered(group, completedCourseIds, seenCourseIds, remainingCourses,
+                        c -> !"ELEC".equals(c.getSubject()));
+            } else {
+                addGroupCourses(group, completedCourseIds, seenCourseIds, remainingCourses);
+            }
         }
 
         // Dynamically fill free elective slots to reach totalRequired (120)
@@ -649,12 +668,25 @@ public class PlanGeneratorService
 
     private void addGroupCourses(RequirementGroup group, Set<Long> completedCourseIds,
                                   Set<Long> seenCourseIds, List<Course> remainingCourses) {
+        addGroupCoursesFiltered(group, completedCourseIds, seenCourseIds, remainingCourses, c -> true);
+    }
+
+    /**
+     * Same as addGroupCourses but lets the caller drop requirement items
+     * whose course fails the supplied predicate (e.g. "skip ELEC placeholders
+     * when the math minor will cover them").
+     */
+    private void addGroupCoursesFiltered(RequirementGroup group, Set<Long> completedCourseIds,
+                                          Set<Long> seenCourseIds, List<Course> remainingCourses,
+                                          java.util.function.Predicate<Course> keep) {
         List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
         for (RequirementItem item : items) {
             if (item.getCourse() != null) {
-                Long courseId = item.getCourse().getCourseId();
+                Course course = item.getCourse();
+                if (!keep.test(course)) continue;
+                Long courseId = course.getCourseId();
                 if (!completedCourseIds.contains(courseId) && seenCourseIds.add(courseId)) {
-                    remainingCourses.add(item.getCourse());
+                    remainingCourses.add(course);
                 }
             } else if (item.getCourseSet() != null) {
                 Long courseSetId = item.getCourseSet().getCourseSetId();
@@ -668,6 +700,7 @@ public class PlanGeneratorService
                 }
                 if (!alreadyTakenOne && !setCourses.isEmpty()) {
                     Course chosenCourse = setCourses.get(0).getCourse();
+                    if (!keep.test(chosenCourse)) continue;
                     if (seenCourseIds.add(chosenCourse.getCourseId())) {
                         remainingCourses.add(chosenCourse);
                     }
