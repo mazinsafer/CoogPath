@@ -1,8 +1,6 @@
 # Node
 node_modules/
 dist/
-.next/
-out/
 
 # Java / Spring Boot
 target/
@@ -45,8 +43,8 @@ build/
 .DS_Store
 **/.DS_Store
 
-# Spring Boot properties (contains secrets)
-application.properties
+# Internal docs kept local
+/documentation/
 
 # TypeScript incremental build cache
 *.tsbuildinfo

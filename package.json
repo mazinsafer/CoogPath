@@ -1,12 +1,15 @@
 {
-  "name": "coogpath",
+  "name": "coogpath-monorepo",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm install --prefix frontend",
-    "dev:backend": "cd backend && ./mvnw spring-boot:run",
-    "dev:frontend": "npm run dev --prefix frontend -- -p 3000",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\""
+    "install:all": "npm install && npm install --prefix coogpath",
+    "dev:api": "cd api && ./mvnw spring-boot:run",
+    "dev:web": "npm run dev --prefix coogpath",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev:api\" \"npm run dev:web\"",
+    "test:api": "cd api && ./mvnw test",
+    "build:web": "npm run build --prefix coogpath",
+    "lint:web": "npm run lint --prefix coogpath"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

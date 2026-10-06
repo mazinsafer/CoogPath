@@ -1,194 +1,141 @@
 # CoogPath
 
+[![CI](https://github.com/mazinsafer/CoogPath/actions/workflows/ci.yml/badge.svg)](https://github.com/mazinsafer/CoogPath/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0-6DB33F?logo=springboot&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
-![license](https://img.shields.io/badge/license-MIT-green)
 
-AI-powered degree planning for University of Houston students. CoogPath helps students build personalized semester-by-semester roadmaps to graduation based on their completed coursework, degree requirements, and scheduling preferences.
+Semester-by-semester degree planning for University of Houston students.
+Mark the courses you've finished, choose your degree options, and CoogPath
+schedules the rest of your degree in an order your prerequisites allow.
 
 ## Features
 
-- **Currently in process of adding more majors**
+- **Term-by-term roadmap** in two modes: *Fastest* (up to 18 credits per
+  fall/spring) and *Balanced* (up to 16, with fewer heavy STEM courses per
+  term). Summers are optional and capped at 6 credits.
+- **Prerequisite-aware scheduling**, including either-or prerequisites and
+  "choose one" requirements.
+- **Degree options:** CS senior sequence (Software Engineering, Data Science,
+  or Math minor); Finance track (Standard, Real Estate, Personal Financial
+  Planning, Corporate Banking and Credit, Global Energy Management, Energy
+  Commodities Trading and Consulting) with an optional math minor.
+- **Transfer and AP credit** toward free electives.
+- **Requirement progress** for every group in the degree.
+- **Course catalog and transcript** views.
+- **PDF export** of the roadmap for advising appointments.
 
-- **Smart Roadmap Generation** — Two planning modes: *Fastest* (graduate in ~3.5 years) and *Balanced* (graduate in ~4 years), with configurable summer semester inclusion
-- **Prerequisite-Aware Scheduling** — Greedy scheduling algorithm that respects prerequisite chains, corequisites, and course availability
-- **CS Capstone & Minor Support** — Choose between a Software Engineering senior sequence, Data Science senior sequence, or Math Minor
-- **Free Elective Tracking** — Enter transfer/AP/dual credit free elective hours to reduce planned elective slots
-- **Degree Requirements Dashboard** — Visual progress tracking across all requirement groups
-- **Course Catalog & Transcript** — Browse all available courses and view your completed coursework
-- **PDF Export** — Download your roadmap as a PDF
-- **UH Email Enforcement** — Registration restricted to `@uh.edu` and `@cougarnet.uh.edu` emails
-- **Advisor Chatbot Coming Soon**
+Supported programs (2024 catalog): **BS Computer Science** and **BBA Finance**.
 
-## Tech Stack
+> CoogPath is a student project and is not affiliated with the University of
+> Houston. It doesn't check which terms a course is offered; review your plan
+> with an advisor.
+
+## Stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 16, React 19, TypeScript, Tailwind CSS 4 |
-| **Backend** | Spring Boot 4, Spring Data JPA, Spring Security, Lombok |
-| **Database** | MySQL |
-| **Migrations** | Flyway (local), Hibernate DDL auto-update (production) |
-| **PDF Generation** | jsPDF (client-side) |
-| **Deployment** | Vercel (frontend), Railway (backend + MySQL) |
+| --- | --- |
+| Web app (`coogpath/`) | React 19, Vite 8, TypeScript, react-router 7, Tailwind CSS 4, oxlint, jsPDF |
+| API (`api/`) | Java 21, Spring Boot 4, Spring Data JPA, Spring Security (BCrypt), Lombok |
+| Database | MySQL 8, schema and seed data managed by Flyway |
+| CI | GitHub Actions: API tests and migrations against a fresh MySQL; web lint and build |
+| Hosting | Vercel (web), Railway (API in Docker, MySQL) |
 
-## Project Structure
+## Repository layout
 
 ```
-coogpath/
-├── backend/                        # Spring Boot API
+.
+├── api/                    Spring Boot REST API
 │   ├── src/main/java/com/coogpath/coogpath/
-│   │   ├── controller/             # REST endpoints
-│   │   ├── model/                  # JPA entities
-│   │   ├── repository/             # Spring Data repositories
-│   │   ├── service/                # Business logic
-│   │   ├── dto/                    # Data transfer objects
-│   │   └── config/                 # Security & CORS config
-│   ├── src/main/resources/
-│   │   ├── db/migration/           # Flyway SQL migrations
-│   │   ├── application.properties  # Default config
-│   │   └── application-prod.properties
-│   ├── Dockerfile                  # Multi-stage Docker build
-│   └── pom.xml
-├── frontend/                       # Next.js app
-│   ├── src/app/
-│   │   ├── page.tsx                # Landing page
-│   │   ├── signup/                 # Registration
-│   │   ├── login/                  # Authentication
-│   │   ├── courses/                # Course selection & preferences
-│   │   ├── dashboard/              # Roadmap & plan summary
-│   │   ├── requirements/           # Degree requirements progress
-│   │   ├── catalog/                # Course catalog browser
-│   │   └── transcript/             # Student transcript
-│   ├── next.config.ts
-│   └── package.json
-└── package.json                    # Monorepo scripts (concurrently)
+│   │   ├── controller/     HTTP endpoints
+│   │   ├── service/        Planner, requirements, students, ProgramRules
+│   │   ├── dto/  model/  repository/  exception/  config/
+│   ├── src/main/resources/db/migration/   Flyway V1..V10
+│   ├── documentation/api.md               Endpoint reference
+│   └── Dockerfile
+├── coogpath/               React single-page app
+│   ├── src/{pages,components,hooks,services,context,lib,types,styles}
+│   └── documentation/frontend.md          Frontend guide
+├── .agents/skills/         Context for coding agents (architecture, migrations, planner, ...)
+├── .github/workflows/ci.yml
+└── package.json            Root scripts to run both apps together
 ```
 
-## Getting Started
+## Getting started
 
-### Prerequisites
-
-- Java 17+
-- Maven
-- MySQL 8+
-- Node.js 18+
-- npm
-
-### Database Setup
-
-Create a local MySQL database:
-
-```sql
-CREATE DATABASE coogpath;
-```
-
-### Environment Variables
-
-Create `backend/.env`:
-
-```properties
-DB_URL=jdbc:mysql://localhost:3306/coogpath
-DB_USERNAME=root
-DB_PASSWORD=your_password
-```
-
-Create `frontend/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=http://localhost:8080
-```
-
-### Run the Application
-
-From the project root:
+Prerequisites: **JDK 21**, **MySQL 8**, **Node.js 22** (or 20.19+).
 
 ```bash
-# Install all dependencies
+# 1. Database
+mysql -u root -e "CREATE DATABASE coogpath"
+
+# 2. API config
+cp api/.env.example api/.env      # set DB_PASSWORD
+
+# 3. Install and run both apps
 npm run install:all
-
-# Run both backend and frontend concurrently
-npm run dev
+npm run dev                       # API → http://localhost:8080, web → http://localhost:5173
 ```
 
-Or run them separately:
+Flyway creates the schema and seeds the degree data the first time the API
+starts. In development the web app proxies `/api` to the API, so it needs no
+environment variables.
+
+Run them separately with `npm run dev:api` and `npm run dev:web`.
+
+### Checks
 
 ```bash
-# Backend (port 8080)
-cd backend && ./mvnw spring-boot:run
-
-# Frontend (port 3000)
-cd frontend && npm run dev
+npm run test:api     # ./mvnw test (needs the local MySQL)
+npm run lint:web
+npm run build:web
 ```
 
-The frontend proxies `/api/*` requests to the backend automatically.
+## How the planner works
 
-## Database Schema
+1. Collect every requirement in the student's program that applies to their
+   options, minus completed courses, and add free-elective slots up to 120 credits.
+2. Each term, find courses whose prerequisite trees are satisfied and rank them
+   by how many remaining courses they unlock.
+3. Fill the term up to the mode's credit cap, with at least one core-subject
+   course (COSC or FINA) per fall/spring term. Balanced CS terms take at most three
+   COSC/MATH courses.
+4. Merge a short final term into the previous one when it fits under the cap.
 
-The application uses 14 tables managed through Flyway migrations:
+Details: [`.agents/skills/planner-algorithm/SKILL.md`](.agents/skills/planner-algorithm/SKILL.md).
 
-- **`course`** — Course catalog (subject, number, title, credits)
-- **`term`** — Academic terms (season, year)
-- **`degree_program`** — Degree programs (name, total credits required)
-- **`requirement_group`** — Groups of requirements within a degree
-- **`requirement_item`** — Individual requirements (specific course or course set)
-- **`course_set` / `course_set_course`** — "Choose one from" course groups
-- **`requisite_rule` / `requisite_node`** — Prerequisite/corequisite trees
-- **`student`** — Student records with preferences
-- **`student_course`** — Student's completed/in-progress courses
-- **`roadmap_snapshot` / `roadmap_semester` / `roadmap_semester_course`** — Saved roadmap plans
+## Adding a major
 
-## Adding a New Major
-
-The application is data-driven. To add a new major (e.g., Finance):
-
-1. Create a new SQL migration file (e.g., `V5__finance_degree_plan.sql`)
-2. Insert the degree program into `degree_program`
-3. Insert all required courses into `course`
-4. Create requirement groups and items in `requirement_group` / `requirement_item`
-5. Define prerequisite trees in `requisite_rule` / `requisite_node`
-
-No backend or frontend code changes are needed — the UI dynamically adapts to the data.
+Degree data lives in Flyway migrations. Adding a program means a new
+`V<n>__*.sql` with courses, requirement groups and items, and prerequisite
+trees. If the program has options such as tracks or minors, it also needs a
+small change in `ProgramRules.java` and the setup page. See
+[`.agents/skills/adding-a-degree-plan`](.agents/skills/adding-a-degree-plan/SKILL.md)
+and [`.agents/skills/flyway-migration-safety`](.agents/skills/flyway-migration-safety/SKILL.md).
 
 ## Deployment
 
-### Backend (Railway)
+| | Railway (API) | Vercel (web) |
+| --- | --- | --- |
+| Root directory | `api` | `coogpath` |
+| Build | `Dockerfile` (runs with the `prod` profile) | Vite preset, `npm run build`, output `dist` |
+| Environment | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS` | `VITE_API_URL` (API origin) |
 
-The backend deploys via the `backend/Dockerfile` with the `prod` Spring profile:
+New migrations apply automatically when the API starts. Back up the
+production database before deploying a migration that changes existing rows.
 
-```dockerfile
-FROM eclipse-temurin:21-jdk AS build
-WORKDIR /app
-COPY . .
-RUN ./mvnw package -DskipTests
+## Documentation
 
-FROM eclipse-temurin:21-jre
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
-```
+- [API reference](api/documentation/api.md)
+- [Frontend guide](coogpath/documentation/frontend.md)
+- [Agent skills](.agents/skills/)
 
-### Frontend (Vercel)
+## Known limitations
 
-- Set the root directory to `frontend`
-- Add environment variable: `NEXT_PUBLIC_API_URL` = your Railway backend URL
-
-## Roadmap Algorithm
-
-The plan generator uses a greedy scheduling approach:
-
-1. **Determine remaining courses** from the student's degree requirements minus completed courses
-2. **Filter eligible courses** whose prerequisites are satisfied
-3. **Score courses** by how many other courses depend on them (prerequisite depth)
-4. **Select courses per semester** based on the chosen mode:
-   - *Fastest*: Up to 18 credits/semester, no STEM cap, greedy fill
-   - *Balanced*: Up to 16 credits/semester, max 3 CS/MATH courses
-5. **Summer semesters** (if enabled): Prioritize non-CS courses, then lower-level math, then CS
-6. **Free elective slots** are dynamically generated to fill any credit deficit to 120
-7. **Post-processing** consolidates single-course trailing semesters
-
-Both modes guarantee at least 1 CS course per Fall/Spring semester.
+- No session or token auth yet. The browser stores the student ID, and API
+  routes aren't scoped to the signed-in user.
+- Course offerings by term, corequisites, and standing requirements (such as
+  junior standing) aren't modeled.
