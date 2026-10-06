@@ -1,3 +1,5 @@
+import { loadToken } from "./sessionStore";
+
 // VITE_API_URL is the API origin; "/api" is added per request, so a trailing "/api" is stripped.
 const API_BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/+$/, "").replace(/\/api$/, "");
 
@@ -32,12 +34,24 @@ function errorMessage(data: unknown, text: string, status: number): string {
   return status >= 500 ? "Something went wrong on our end. Please try again." : `Request failed (${status}).`;
 }
 
+let onSessionRejected: () => void = () => undefined;
+
+/** Called when the API rejects the stored sign-in token (expired, or signed with a rotated secret). */
+export function setSessionRejectedHandler(handler: () => void): void {
+  onSessionRejected = handler;
+}
+
 async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  const token = loadToken();
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   let response: Response;
   try {
     response = await fetch(`${API_BASE}/api${path}`, {
       method,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -47,6 +61,15 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
   const text = await response.text();
   const data = text ? parseJson(text) : undefined;
 
+  if (response.status === 401 && token) {
+    onSessionRejected();
+    throw new ApiError("Your session has ended. Please sign in again.", 401);
+  }
+  if (response.status === 429) {
+    const wait = Number(response.headers.get("Retry-After"));
+    const when = Number.isFinite(wait) && wait > 0 ? `in ${wait} second${wait === 1 ? "" : "s"}` : "in a moment";
+    throw new ApiError(`Too many requests. Try again ${when}.`, 429);
+  }
   if (!response.ok) {
     throw new ApiError(errorMessage(data, text, response.status), response.status);
   }

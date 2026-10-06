@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -17,9 +18,7 @@ import com.coogpath.coogpath.dto.PlanResult;
 import com.coogpath.coogpath.dto.PlannedTerm;
 import com.coogpath.coogpath.exception.ResourceNotFoundException;
 import com.coogpath.coogpath.model.Course;
-import com.coogpath.coogpath.model.CourseSetCourse;
 import com.coogpath.coogpath.model.RequirementGroup;
-import com.coogpath.coogpath.model.RequirementItem;
 import com.coogpath.coogpath.model.RoadmapSemester;
 import com.coogpath.coogpath.model.RoadmapSemesterCourse;
 import com.coogpath.coogpath.model.RoadmapSnapshot;
@@ -27,16 +26,13 @@ import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.model.StudentCourse;
 import com.coogpath.coogpath.model.Term;
 import com.coogpath.coogpath.repository.CourseRepository;
-import com.coogpath.coogpath.repository.CourseSetCourseRepository;
-import com.coogpath.coogpath.repository.RequirementGroupRepository;
-import com.coogpath.coogpath.repository.RequirementItemRepository;
-import com.coogpath.coogpath.repository.RequisiteNodeRepository;
-import com.coogpath.coogpath.repository.RequisiteRuleRepository;
 import com.coogpath.coogpath.repository.RoadmapSemesterCourseRepository;
 import com.coogpath.coogpath.repository.RoadmapSemesterRepository;
 import com.coogpath.coogpath.repository.RoadmapSnapshotRepository;
 import com.coogpath.coogpath.repository.StudentCourseRepository;
 import com.coogpath.coogpath.repository.StudentRepository;
+import com.coogpath.coogpath.service.CatalogCache.GroupRequirements;
+import com.coogpath.coogpath.service.CatalogCache.ItemRequirement;
 
 import lombok.RequiredArgsConstructor;
 
@@ -60,42 +56,48 @@ public class PlanGeneratorService
 
     private final StudentCourseRepository studentCourseRepository;
     private final StudentRepository studentRepository;
-    private final RequirementItemRepository requirementItemRepository;
-    private final RequisiteNodeRepository requisiteNodeRepository;
-    private final RequisiteRuleRepository requisiteRuleRepository;
-    private final RequirementGroupRepository requirementGroupRepository;
+    private final CatalogCache catalogCache;
+    private final PlanCache planCache;
 
     private final CourseRepository courseRepository;
     private final RoadmapSnapshotRepository snapshotRepository;
     private final RoadmapSemesterRepository semesterRepository;
     private final RoadmapSemesterCourseRepository semesterCourseRepository;
-    private final CourseSetCourseRepository courseSetCourseRepository;
 
     @Transactional(readOnly = true)
     public PlanResult generatePlan(Long studentId, String mode, String startSeason, Integer startYear, Boolean includeSummer)
     {
-        PlanResult result = new PlanResult();
-
         Student student = studentRepository.findById(studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found"));
+        Map<Long, Course> completedCourses = getCompletedCourses(studentId);
 
-        PrerequisiteGraph graph = new PrerequisiteGraph(
-                requisiteRuleRepository.findAll(), requisiteNodeRepository.findAll());
-
-        Set<Long> completedCourseIds = getCompletedCourseIds(studentId);
-        List<Course> remainingCourses = getRemainingCourses(student, completedCourseIds);
-
-        Term.Season currentSeason = defaultStartSeason();
-        int currentYear = defaultStartYear();
+        Term.Season firstSeason = defaultStartSeason();
         if (startSeason != null) {
-            try { currentSeason = Term.Season.valueOf(startSeason.toUpperCase()); } catch (IllegalArgumentException ignored) {}
+            try { firstSeason = Term.Season.valueOf(startSeason.toUpperCase()); } catch (IllegalArgumentException ignored) {}
         }
-        if (startYear != null) {
-            currentYear = startYear;
-        }
-
+        Term.Season season = firstSeason;
+        int year = startYear != null ? startYear : defaultStartYear();
         boolean useSummer = includeSummer != null ? includeSummer : student.isIncludeSummer();
         boolean isFastest = !"balanced".equalsIgnoreCase(mode);
+
+        String key = planCache.key(
+                student.getDegreeProgram().getProgramId(), student.getCapstoneChoice(), student.getFinanceTrack(),
+                student.isMathMinor(), student.getFreeElectiveCredits(), new TreeSet<>(completedCourses.keySet()),
+                isFastest, season, year, useSummer);
+        return planCache.get(key, () -> buildPlan(student, completedCourses, isFastest, season, year, useSummer));
+    }
+
+    private PlanResult buildPlan(Student student, Map<Long, Course> completedCourses, boolean isFastest,
+                                 Term.Season firstSeason, int firstYear, boolean useSummer)
+    {
+        PlanResult result = new PlanResult();
+        PrerequisiteGraph graph = catalogCache.prerequisiteGraph();
+
+        Set<Long> completedCourseIds = new HashSet<>(completedCourses.keySet());
+        List<Course> remainingCourses = getRemainingCourses(student, completedCourses);
+
+        Term.Season currentSeason = firstSeason;
+        int currentYear = firstYear;
         String requiredSubject = ProgramRules.coreSubject(student);
 
         // Phase 1: schedule into raw buckets (Course objects, not DTOs yet)
@@ -458,38 +460,39 @@ public class PlanGeneratorService
         }
     }
 
-    private Set<Long> getCompletedCourseIds(Long studentId)
+    /** Taken, transferred, and in-progress courses by ID; in-progress courses count as done for planning. */
+    private Map<Long, Course> getCompletedCourses(Long studentId)
     {
-        return studentCourseRepository.findByStudentStudentId(studentId).stream()
-                .filter(sc ->
-                    sc.getStatus() == StudentCourse.Status.TAKEN ||
-                    sc.getStatus() == StudentCourse.Status.TRANSFER ||
-                    sc.getStatus() == StudentCourse.Status.IN_PROGRESS)
-                .map(sc -> sc.getCourse().getCourseId())
-                .collect(Collectors.toSet());
+        Map<Long, Course> completed = new HashMap<>();
+        for (StudentCourse sc : studentCourseRepository.findByStudentStudentId(studentId)) {
+            if (sc.getStatus() == StudentCourse.Status.TAKEN ||
+                sc.getStatus() == StudentCourse.Status.TRANSFER ||
+                sc.getStatus() == StudentCourse.Status.IN_PROGRESS) {
+                completed.putIfAbsent(sc.getCourse().getCourseId(), sc.getCourse());
+            }
+        }
+        return completed;
     }
 
     /**
      * Required courses the student still needs, plus generated free-elective
      * slots (negative IDs, subject ELEC) to reach the program's total credits.
      */
-    private List<Course> getRemainingCourses(Student student, Set<Long> completedCourseIds)
+    private List<Course> getRemainingCourses(Student student, Map<Long, Course> completedCourses)
     {
+        Set<Long> completedCourseIds = completedCourses.keySet();
         List<Course> remainingCourses = new ArrayList<>();
         Set<Long> seenCourseIds = new HashSet<>();
 
-        List<RequirementGroup> groups = requirementGroupRepository.findByDegreeProgramProgramId(
-                student.getDegreeProgram().getProgramId());
-
-        for (RequirementGroup group : groups)
+        for (GroupRequirements requirements : catalogCache.requirementsFor(student.getDegreeProgram().getProgramId()))
         {
+            RequirementGroup group = requirements.group();
             if (!ProgramRules.appliesTo(student, group)) continue;
             if (group.getName().contains("Free Elective")) continue;
-            addGroupCourses(student, group, completedCourseIds, seenCourseIds, remainingCourses);
+            addGroupCourses(student, requirements, completedCourseIds, seenCourseIds, remainingCourses);
         }
 
-        int completedCredits = courseRepository.findAllById(completedCourseIds).stream()
-                .mapToInt(Course::getCredits).sum();
+        int completedCredits = completedCourses.values().stream().mapToInt(Course::getCredits).sum();
         int selfReportedFreeElectives = student.getFreeElectiveCredits() != null ? student.getFreeElectiveCredits() : 0;
         int remainingCredits = remainingCourses.stream().mapToInt(Course::getCredits).sum();
         int totalRequired = student.getDegreeProgram().getTotalCreditsRequired();
@@ -513,23 +516,22 @@ public class PlanGeneratorService
     }
 
     /** Adds a group's outstanding courses; for a course set, the first option stands in for the choice. */
-    private void addGroupCourses(Student student, RequirementGroup group, Set<Long> completedCourseIds,
+    private void addGroupCourses(Student student, GroupRequirements requirements, Set<Long> completedCourseIds,
                                  Set<Long> seenCourseIds, List<Course> remainingCourses) {
-        List<RequirementItem> items = requirementItemRepository.findByRequirementGroupGroupId(group.getGroupId());
-        for (RequirementItem item : items) {
-            if (item.getCourse() != null) {
-                Course course = item.getCourse();
+        RequirementGroup group = requirements.group();
+        for (ItemRequirement item : requirements.items()) {
+            if (!item.isChoice()) {
+                Course course = item.course();
                 if (!ProgramRules.countsSeparately(student, group, course)) continue;
                 if (!completedCourseIds.contains(course.getCourseId()) && seenCourseIds.add(course.getCourseId())) {
                     remainingCourses.add(course);
                 }
-            } else if (item.getCourseSet() != null) {
-                List<CourseSetCourse> setCourses = courseSetCourseRepository.findByCourseSetCourseSetId(
-                        item.getCourseSet().getCourseSetId());
-                boolean alreadyTakenOne = setCourses.stream()
-                        .anyMatch(csc -> completedCourseIds.contains(csc.getCourse().getCourseId()));
-                if (!alreadyTakenOne && !setCourses.isEmpty()) {
-                    Course chosenCourse = setCourses.get(0).getCourse();
+            } else {
+                List<Course> options = item.options();
+                boolean alreadyTakenOne = options.stream()
+                        .anyMatch(option -> completedCourseIds.contains(option.getCourseId()));
+                if (!alreadyTakenOne && !options.isEmpty()) {
+                    Course chosenCourse = options.get(0);
                     if (!ProgramRules.countsSeparately(student, group, chosenCourse)) continue;
                     if (seenCourseIds.add(chosenCourse.getCourseId())) {
                         remainingCourses.add(chosenCourse);

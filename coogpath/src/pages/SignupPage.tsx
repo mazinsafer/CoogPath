@@ -48,14 +48,14 @@ export function SignupPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const profile = await register({
+      const auth = await register({
         name: name.trim(),
         email: email.trim(),
         password,
         programId: Number(programId),
         catalogYear: CATALOG_YEAR,
       });
-      signIn(profile);
+      signIn(auth);
       navigate("/setup", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create your account.");

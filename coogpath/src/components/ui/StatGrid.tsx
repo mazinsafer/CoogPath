@@ -8,7 +8,7 @@ export interface Stat {
 
 export function StatGrid({ stats }: { stats: Stat[] }) {
   return (
-    <dl className="grid grid-cols-2 divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white lg:grid-cols-4 lg:divide-x">
+    <dl className="grid grid-cols-2 divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-surface lg:grid-cols-4 lg:divide-x">
       {stats.map((stat, i) => (
         <div
           key={stat.label}

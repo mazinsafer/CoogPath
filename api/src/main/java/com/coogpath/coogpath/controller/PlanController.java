@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coogpath.coogpath.config.OwnStudentOnly;
 import com.coogpath.coogpath.dto.PlanResult;
 import com.coogpath.coogpath.service.PlanGeneratorService;
 
@@ -22,6 +23,7 @@ public class PlanController
 {
     private final PlanGeneratorService planGeneratorService;
 
+    @OwnStudentOnly
     @GetMapping("/generate/{studentId}")
     public PlanResult generatePlan(
             @PathVariable Long studentId,
@@ -33,6 +35,7 @@ public class PlanController
         return planGeneratorService.generatePlan(studentId, mode, startSeason, startYear, includeSummer);
     }
 
+    @OwnStudentOnly
     @PostMapping("/save/{studentId}")
     @ResponseStatus(HttpStatus.CREATED)
     public void savePlan(@PathVariable Long studentId, @RequestBody PlanResult plan)

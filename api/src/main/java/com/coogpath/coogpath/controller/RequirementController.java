@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coogpath.coogpath.config.OwnStudentOnly;
 import com.coogpath.coogpath.dto.RequirementGroupProgress;
 import com.coogpath.coogpath.service.RequirementService;
 
@@ -19,6 +20,7 @@ public class RequirementController {
 
     private final RequirementService requirementService;
 
+    @OwnStudentOnly
     @GetMapping("/{studentId}")
     public List<RequirementGroupProgress> getRequirements(@PathVariable Long studentId) {
         return requirementService.getProgress(studentId);

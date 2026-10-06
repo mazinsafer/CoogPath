@@ -1,6 +1,7 @@
 import { Logo } from "../components/layout/Logo";
 import { SiteFooter } from "../components/layout/SiteFooter";
 import { IconArrowRight, IconCheck } from "../components/Icons";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { ButtonLink } from "../components/ui/Button";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useSession } from "../hooks/useSession";
@@ -66,11 +67,12 @@ export function LandingPage() {
   const { session } = useSession();
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface">
       <header className="border-b border-zinc-200">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Logo />
           <nav className="flex items-center gap-2">
+            <ThemeToggle />
             {session ? (
               <ButtonLink to="/roadmap" size="sm">
                 Open my roadmap
@@ -114,13 +116,13 @@ export function LandingPage() {
           </div>
 
           <figure className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 shadow-sm">
-            <figcaption className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-3 text-xs">
+            <figcaption className="flex items-center justify-between border-b border-zinc-200 bg-surface px-4 py-3 text-xs">
               <span className="font-medium text-zinc-900">Example plan</span>
               <span className="text-zinc-500">BS Computer Science</span>
             </figcaption>
             <div className="space-y-3 p-4">
               {EXAMPLE_TERMS.map((term) => (
-                <div key={term.label} className="rounded-lg border border-zinc-200 bg-white">
+                <div key={term.label} className="rounded-lg border border-zinc-200 bg-surface">
                   <div className="flex items-center justify-between border-b border-zinc-100 px-3.5 py-2 text-xs">
                     <span className="font-semibold text-zinc-900">{term.label}</span>
                     <span className="text-zinc-500">
@@ -148,7 +150,7 @@ export function LandingPage() {
             <ol className="mt-6 grid gap-6 md:grid-cols-3">
               {STEPS.map((step, i) => (
                 <li key={step.title} className="flex gap-4">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-white text-sm font-medium text-zinc-700">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-300 bg-surface text-sm font-medium text-zinc-700">
                     {i + 1}
                   </span>
                   <div>

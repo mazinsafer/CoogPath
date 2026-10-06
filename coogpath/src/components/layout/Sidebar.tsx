@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useSession } from "../../hooks/useSession";
 import { initials } from "../../lib/format";
 import { IconBook, IconChecklist, IconLogout, IconRoadmap, IconSliders, IconTranscript, IconX } from "../Icons";
+import { ThemeToggle } from "../ThemeToggle";
 import { Logo } from "./Logo";
 
 const NAV = [
@@ -39,9 +40,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-30 bg-zinc-900/30 lg:hidden" onClick={onClose} aria-hidden="true" />}
+      {open && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={onClose} aria-hidden="true" />}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-zinc-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-zinc-200 bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -95,6 +96,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               {initials(name)}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800">{name}</span>
+            <ThemeToggle />
             <button
               type="button"
               onClick={handleSignOut}

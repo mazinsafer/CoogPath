@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.coogpath.coogpath.dto.LoginDTO;
-import com.coogpath.coogpath.dto.StudentProfile;
 import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.repository.StudentRepository;
+import com.coogpath.coogpath.service.TokenService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,6 +26,7 @@ public class AuthController {
 
     private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
 
     /**
      * Unknown email and wrong password return the same 401 body so the
@@ -47,6 +48,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(INVALID_CREDENTIALS);
         }
 
-        return ResponseEntity.ok(StudentProfile.from(student));
+        return ResponseEntity.ok(tokenService.issue(student));
     }
 }

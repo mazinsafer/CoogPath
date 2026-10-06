@@ -109,15 +109,26 @@ page ──> hook (useStudentData) ──> service ──> api.ts ──> fetch 
 
 ## Session
 
-There is no auth token (see the API docs). After login or signup the app
-stores `{ studentId, name }` under `localStorage["coogpath.session"]`. The
+After login or signup the app stores `{ studentId, name, token, expiresAt }`
+under `localStorage["coogpath.session"]`, and `api.ts` sends the token as a
+bearer header. A `401` on a request that carried a token signs the user out and
+the login page explains the session ended; `429` errors include the wait time. The
 chosen start term is stored under `coogpath.startTerm`. All other preferences
 (capstone, track, minor, summers, transfer credit) are saved on the server via
 `PATCH /students/{id}/preferences`.
 
-On first load, `sessionStore` migrates the keys written by the old Next.js app
-(`studentId`, `studentName`, `startSemester`, …), so existing users stay
-signed in, and then deletes them.
+On first load, `sessionStore` deletes the keys written by the old Next.js app
+(`studentId`, `studentName`, …), keeping only `startSemester`. Those users sign
+in again, since they have no token.
+
+## Theme
+
+`lib/theme.ts` toggles a `dark` class on `<html>` and saves the choice under
+`coogpath.theme`; an inline script in `index.html` applies it before first
+paint, defaulting to the OS setting. Dark mode works by remapping the zinc
+scale and status tints in `styles/index.css`, so components rarely need
+`dark:` variants. Use `bg-surface` (not `bg-white`) for cards and inputs, and
+`text-surface` for text on a `bg-zinc-900` fill.
 
 ## Pages
 

@@ -39,8 +39,18 @@ export interface TranscriptEntry {
   grade: string | null;
 }
 
+/** Returned by login and registration. */
+export interface AuthResponse {
+  token: string;
+  /** ISO-8601 instant after which the API rejects the token. */
+  expiresAt: string;
+  student: StudentProfile;
+}
+
 /** What the browser remembers about the signed-in student. */
 export interface Session {
   studentId: number;
   name: string;
+  token: string;
+  expiresAt: string;
 }
