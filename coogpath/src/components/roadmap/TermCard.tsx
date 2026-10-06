@@ -9,10 +9,10 @@ interface TermCardProps {
 
 export function TermCard({ term, index }: TermCardProps) {
   return (
-    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
+    <section className="overflow-hidden rounded-lg border border-zinc-200 bg-surface">
       <header className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50/60 px-5 py-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-6 items-center justify-center rounded-full border border-zinc-300 bg-white text-xs font-medium text-zinc-600 tabular-nums">
+          <span className="flex size-6 items-center justify-center rounded-full border border-zinc-300 bg-surface text-xs font-medium text-zinc-600 tabular-nums">
             {index + 1}
           </span>
           <h3 className="text-sm font-semibold text-zinc-900">{formatTermLabel(term.termLabel)}</h3>

@@ -194,7 +194,7 @@ function SetupForm({ profile, courses, completedIds }: SetupFormProps) {
               onChange={(e) =>
                 setTransferCredits(Math.max(0, Math.min(MAX_TRANSFER_CREDITS, Number(e.target.value) || 0)))
               }
-              className="block h-10 w-28 rounded-md border border-zinc-300 bg-white px-3 text-sm tabular-nums shadow-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
+              className="block h-10 w-28 rounded-md border border-zinc-300 bg-surface px-3 text-sm tabular-nums shadow-sm focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none"
             />
           </div>
         </Card>
@@ -256,7 +256,7 @@ function SetupForm({ profile, courses, completedIds }: SetupFormProps) {
         </div>
       </Card>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 backdrop-blur lg:left-60">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-surface/95 backdrop-blur lg:left-60">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <p className="text-sm text-zinc-600">
             <span className="font-medium text-zinc-900">{pluralize(selected.size, "course")}</span> ·{" "}

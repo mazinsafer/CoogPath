@@ -1,7 +1,7 @@
 import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 
 const CONTROL =
-  "block w-full rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500";
+  "block w-full rounded-md border border-zinc-300 bg-surface px-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500";
 
 interface FieldShellProps {
   id: string;

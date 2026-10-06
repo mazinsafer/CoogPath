@@ -1,6 +1,6 @@
-import type { StudentProfile } from "../types/student";
+import type { AuthResponse } from "../types/student";
 import { api } from "./api";
 
-export function login(email: string, password: string): Promise<StudentProfile> {
-  return api.post<StudentProfile>("/auth/login", { email: email.trim(), password });
+export function login(email: string, password: string): Promise<AuthResponse> {
+  return api.post<AuthResponse>("/auth/login", { email: email.trim(), password });
 }

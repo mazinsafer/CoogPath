@@ -100,13 +100,20 @@ Liveness check; doesn't touch the database.
 
 ### Auth
 
+Login and registration return an [AuthResponse](#authresponse). Every other
+`/students/{studentId}`, `/plan/*` and `/requirements/{studentId}` route needs
+`Authorization: Bearer <token>`, and the token's subject must equal
+`studentId`. Missing, expired or tampered tokens get `401`; another student's
+ID gets `403`. Both return `{ "error": "..." }`. `GET /health`, `/programs`
+and `/courses` are public.
+
 #### `POST /api/auth/login`
 
 ```json
 { "email": "jane@cougarnet.uh.edu", "password": "correct horse" }
 ```
 
-`200` returns a [StudentProfile](#studentprofile). `401` returns
+`200` returns an [AuthResponse](#authresponse). `401` returns
 `Invalid email or password` for an unknown email and for a wrong password alike.
 
 ### Students
@@ -132,7 +139,7 @@ Input is trimmed and validated:
 - the password must be at least 8 characters;
 - the email must not already be registered.
 
-`201` returns a [StudentProfile](#studentprofile). `400` returns one of:
+`201` returns an [AuthResponse](#authresponse), so the new student is signed in. `400` returns one of:
 
 - `Name, email, password, and major are required.`
 - `Use a UH email address (@uh.edu or @cougarnet.uh.edu).`
@@ -304,7 +311,13 @@ Returns `201` with no body. The current frontend doesn't call it.
 
 ### Shared shapes
 
-#### StudentProfile
+#### AuthResponse
+
+```json
+{ "token": "eyJhbGciOiJIUzI1NiJ9…", "expiresAt": "2026-10-13T23:00:00Z", "student": { "studentId": 1, "...": "StudentProfile" } }
+```
+
+### StudentProfile
 
 Returned by login, register, profile and preference updates. It never
 includes the password hash.
@@ -349,7 +362,10 @@ Railway settings:
 
 - Root directory: `api`
 - Variables: `DB_URL` (`jdbc:mysql://<host>:<port>/<db>`), `DB_USERNAME`,
-  `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS` (e.g. `https://coogpath.vercel.app`)
+  `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS` (e.g. `https://coogpath.vercel.app`),
+  `JWT_SECRET` (random, 32+ characters: `openssl rand -base64 48`)
+- Optional: `CACHE_TYPE=redis` plus `REDIS_URL` to share cached plans across
+  instances and restarts; `JWT_TTL` (default `7d`)
 - Health check path: `/api/health`
 
 New migrations run automatically when the service starts. Back up the database
@@ -358,11 +374,16 @@ before deploying a migration that changes existing rows.
 ## Security notes
 
 - Passwords are hashed with BCrypt.
-- There is **no session or token**. Login returns the profile, the frontend
-  stores the student ID, and every endpoint is `permitAll`, so anyone who knows
-  a student ID can read or change that student's data. Adding real
-  authentication (for example a signed session cookie or JWT, with each
-  `/students/{id}` route checking the caller) is the most important open
-  backend task.
+- Sessions are stateless HS256 JWTs signed with `JWT_SECRET` (the API refuses
+  to start if it is shorter than 32 bytes; if unset, a random key is used and
+  every sign-in ends on restart). `@OwnStudentOnly` limits each student route
+  to the token's student. There is no server-side logout; tokens last `JWT_TTL`.
+- Requests are rate limited per client IP: 10/min for login and registration,
+  30/min for plan generation, 300/min otherwise. Over the limit returns `429`
+  with `Retry-After`. Limits are per API instance.
+- Generated plans are cached (Caffeine in-process, or Redis with
+  `CACHE_TYPE=redis`) under a hash of the catalog version, the student's
+  options and completed courses, and the request, so they never go stale.
+  Requirements and prerequisites are loaded once per process.
 - CORS is restricted by `CORS_ALLOWED_ORIGINS`. Set it in production; the
   default `*` is for local development.

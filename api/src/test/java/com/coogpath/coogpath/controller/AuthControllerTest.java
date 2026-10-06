@@ -1,6 +1,7 @@
 package com.coogpath.coogpath.controller;
 
 import java.lang.reflect.RecordComponent;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
@@ -23,17 +24,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.coogpath.coogpath.dto.AuthResponse;
 import com.coogpath.coogpath.dto.LoginDTO;
 import com.coogpath.coogpath.dto.StudentProfile;
 import com.coogpath.coogpath.model.DegreeProgram;
 import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.repository.StudentRepository;
+import com.coogpath.coogpath.service.TokenService;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {
 
     @Mock private StudentRepository studentRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private TokenService tokenService;
     @InjectMocks private AuthController authController;
 
     private Student jorge;
@@ -57,12 +61,17 @@ class AuthControllerTest {
         loginDto.setPassword("correctPassword");
     }
 
+    private AuthResponse signedIn() {
+        return new AuthResponse("signed-token", Instant.now().plusSeconds(3600), StudentProfile.from(jorge));
+    }
+
     // LOGIN: HAPPY PATH
 
     @Test
     void valid_credentials_should_return_200_with_student_info() {
         when(studentRepository.findByEmail("jorge@uh.edu")).thenReturn(Optional.of(jorge));
         when(passwordEncoder.matches("correctPassword", "$2a$10$encodedHash")).thenReturn(true);
+        when(tokenService.issue(jorge)).thenReturn(signedIn());
 
         ResponseEntity<?> response = authController.login(loginDto);
 
@@ -73,20 +82,23 @@ class AuthControllerTest {
     void successful_login_should_return_student_id_name_and_program() {
         when(studentRepository.findByEmail("jorge@uh.edu")).thenReturn(Optional.of(jorge));
         when(passwordEncoder.matches("correctPassword", "$2a$10$encodedHash")).thenReturn(true);
+        when(tokenService.issue(jorge)).thenReturn(signedIn());
 
         ResponseEntity<?> response = authController.login(loginDto);
-        StudentProfile body = (StudentProfile) response.getBody();
+        AuthResponse body = (AuthResponse) response.getBody();
 
         assertNotNull(body);
-        assertEquals(1L, body.studentId());
-        assertEquals("Jorge Coog", body.name());
-        assertEquals(1L, body.programId());
+        assertEquals("signed-token", body.token());
+        assertEquals(1L, body.student().studentId());
+        assertEquals("Jorge Coog", body.student().name());
+        assertEquals(1L, body.student().programId());
     }
 
     @Test
     void successful_login_should_never_return_the_password() {
         when(studentRepository.findByEmail("jorge@uh.edu")).thenReturn(Optional.of(jorge));
         when(passwordEncoder.matches("correctPassword", "$2a$10$encodedHash")).thenReturn(true);
+        when(tokenService.issue(jorge)).thenReturn(signedIn());
 
         ResponseEntity<?> response = authController.login(loginDto);
         assertNotNull(response.getBody());
@@ -96,6 +108,9 @@ class AuthControllerTest {
                 .collect(Collectors.toSet());
         assertFalse(fields.contains("password"), "Password must never be in the response");
         assertFalse(fields.contains("passwordHash"), "Password hash must never be in the response");
+        assertFalse(Arrays.stream(AuthResponse.class.getRecordComponents())
+                .anyMatch(c -> c.getName().toLowerCase().contains("password")),
+                "Password must never be in the auth response");
     }
 
     // LOGIN: WRONG PASSWORD 
@@ -159,6 +174,7 @@ class AuthControllerTest {
     void password_should_be_compared_using_the_encoder_not_string_equals() {
         when(studentRepository.findByEmail("jorge@uh.edu")).thenReturn(Optional.of(jorge));
         when(passwordEncoder.matches("correctPassword", "$2a$10$encodedHash")).thenReturn(true);
+        when(tokenService.issue(jorge)).thenReturn(signedIn());
 
         authController.login(loginDto);
 

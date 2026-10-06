@@ -135,7 +135,5 @@ production database before deploying a migration that changes existing rows.
 
 ## Known limitations
 
-- No session or token auth yet. The browser stores the student ID, and API
-  routes aren't scoped to the signed-in user.
 - Course offerings by term, corequisites, and standing requirements (such as
   junior standing) aren't modeled.

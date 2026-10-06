@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -11,6 +13,54 @@
   --color-brand-600: #c8102e;
   --color-brand-700: #a50d26;
   --color-brand-800: #860b1f;
+
+  /* Cards, panels, inputs, and anything else that sits on the page background. */
+  --color-surface: #ffffff;
+}
+
+/*
+ * Dark mode remaps the neutral scale and the tinted status colors instead of
+ * adding dark: variants to every component. The scale is inverted, so
+ * zinc-900 is the brightest text and zinc-100 the most subtle fill. Use
+ * text-surface (not text-white) for text on a zinc-900 fill so it flips too.
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-surface: #0a0a0b;
+
+  --color-zinc-50: #141416;
+  --color-zinc-100: #1c1c1f;
+  --color-zinc-200: #27272a;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-400: #71717a;
+  --color-zinc-500: #a1a1aa;
+  --color-zinc-600: #b9b9c1;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #fafafa;
+
+  --color-brand-50: #2a0a10;
+  --color-brand-100: #3d0e18;
+  --color-brand-200: #5c1424;
+  --color-brand-700: #f0566b;
+  --color-brand-800: #f7a1ad;
+
+  --color-emerald-50: #04241a;
+  --color-emerald-200: #065f46;
+  --color-emerald-700: #6ee7b7;
+
+  --color-sky-50: #071a2b;
+  --color-sky-200: #0c4a6e;
+  --color-sky-600: #38bdf8;
+  --color-sky-700: #7dd3fc;
+  --color-sky-900: #e0f2fe;
+
+  --color-amber-50: #261703;
+  --color-amber-200: #78350f;
+  --color-amber-600: #fbbf24;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fef3c7;
 }
 
 @layer base {
@@ -22,6 +72,10 @@
 
   body {
     @apply bg-zinc-50 text-zinc-900;
+  }
+
+  .dark body {
+    @apply bg-black;
   }
 
   ::selection {

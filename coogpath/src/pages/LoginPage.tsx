@@ -10,7 +10,7 @@ import { login } from "../services/authService";
 
 export function LoginPage() {
   useDocumentTitle("Sign in");
-  const { session, signIn } = useSession();
+  const { session, expired, signIn } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
   const redirectTo = (location.state as { from?: string } | null)?.from ?? "/roadmap";
@@ -49,7 +49,7 @@ export function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        {error && <Alert tone="error">{error}</Alert>}
+        {error ? <Alert tone="error">{error}</Alert> : expired && <Alert tone="info">Your session has ended. Sign in again to continue.</Alert>}
         <TextField
           label="UH email"
           type="email"

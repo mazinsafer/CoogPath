@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg border border-zinc-200 bg-white ${className}`}>{children}</section>;
+  return <section className={`rounded-lg border border-zinc-200 bg-surface ${className}`}>{children}</section>;
 }
 
 interface CardHeaderProps {

@@ -12,6 +12,14 @@
       rel="stylesheet"
     />
     <title>CoogPath</title>
+    <script>
+      // Runs before first paint so dark mode never flashes white. Keep the key in sync with src/lib/theme.ts.
+      try {
+        var saved = localStorage.getItem("coogpath.theme");
+        var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

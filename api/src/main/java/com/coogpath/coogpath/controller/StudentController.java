@@ -14,12 +14,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coogpath.coogpath.config.OwnStudentOnly;
+import com.coogpath.coogpath.dto.AuthResponse;
 import com.coogpath.coogpath.dto.StudentPreferencesRequest;
 import com.coogpath.coogpath.dto.StudentProfile;
 import com.coogpath.coogpath.dto.StudentRegistrationDTO;
 import com.coogpath.coogpath.dto.TranscriptEntry;
 import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.service.StudentService;
+import com.coogpath.coogpath.service.TokenService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,19 +32,22 @@ import lombok.RequiredArgsConstructor;
 public class StudentController {
 
     private final StudentService studentService;
+    private final TokenService tokenService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public StudentProfile registerStudent(@RequestBody StudentRegistrationDTO dto) {
+    public AuthResponse registerStudent(@RequestBody StudentRegistrationDTO dto) {
         Student student = studentService.addStudent(dto);
-        return StudentProfile.from(student);
+        return tokenService.issue(student);
     }
 
+    @OwnStudentOnly
     @GetMapping("/{studentId}")
     public StudentProfile getStudent(@PathVariable Long studentId) {
         return studentService.getProfile(studentId);
     }
 
+    @OwnStudentOnly
     @PatchMapping("/{studentId}/preferences")
     public StudentProfile updatePreferences(
             @PathVariable Long studentId,
@@ -49,16 +55,19 @@ public class StudentController {
         return studentService.updatePreferences(studentId, request);
     }
 
+    @OwnStudentOnly
     @GetMapping("/{studentId}/transcript")
     public List<TranscriptEntry> getTranscript(@PathVariable Long studentId) {
         return studentService.getTranscript(studentId);
     }
 
+    @OwnStudentOnly
     @GetMapping("/{studentId}/courses")
     public List<Long> getCompletedCourses(@PathVariable Long studentId) {
         return studentService.getCompletedCourseIds(studentId);
     }
 
+    @OwnStudentOnly
     @PutMapping("/{studentId}/courses")
     public Map<String, Integer> replaceCompletedCourses(
             @PathVariable Long studentId,

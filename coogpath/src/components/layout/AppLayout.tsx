@@ -11,7 +11,7 @@ export function AppLayout() {
     <div className="flex min-h-screen">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b border-zinc-200 bg-white px-4 lg:hidden">
+        <header className="flex h-14 items-center gap-3 border-b border-zinc-200 bg-surface px-4 lg:hidden">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}

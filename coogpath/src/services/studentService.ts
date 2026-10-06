@@ -1,4 +1,5 @@
 import type {
+  AuthResponse,
   RegistrationRequest,
   StudentPreferences,
   StudentProfile,
@@ -6,8 +7,8 @@ import type {
 } from "../types/student";
 import { api } from "./api";
 
-export function register(request: RegistrationRequest): Promise<StudentProfile> {
-  return api.post<StudentProfile>("/students/register", request);
+export function register(request: RegistrationRequest): Promise<AuthResponse> {
+  return api.post<AuthResponse>("/students/register", request);
 }
 
 export function getProfile(studentId: number): Promise<StudentProfile> {

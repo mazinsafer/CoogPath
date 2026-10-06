@@ -1,9 +1,11 @@
 import { createContext } from "react";
-import type { Session, StudentProfile } from "../types/student";
+import type { AuthResponse, Session } from "../types/student";
 
 export interface SessionContextValue {
   session: Session | null;
-  signIn: (profile: StudentProfile) => void;
+  /** True after the API rejected the stored token, so sign-in can explain why. */
+  expired: boolean;
+  signIn: (auth: AuthResponse) => void;
   signOut: () => void;
 }
 

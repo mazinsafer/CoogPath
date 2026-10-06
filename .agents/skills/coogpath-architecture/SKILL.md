@@ -79,9 +79,17 @@ and `GET /api/requirements/{id}` before and after for a CS student (each capston
 choice) and a Finance student (several tracks, math minor on and off). Unless the
 change is meant to alter plans, the output must be identical.
 
-## Auth caveat
+## Auth
 
-`POST /api/auth/login` checks a BCrypt hash, but there is no session or token.
-The frontend stores `{studentId, name}` in localStorage, and every endpoint is
-`permitAll`. Do not describe the app as having secure accounts, and do not add
-features that expose more personal data until real auth exists.
+Login and registration return a JWT whose subject is the student ID. Any new
+endpoint that takes a student ID must be annotated `@OwnStudentOnly` (and name
+the parameter `studentId`), and must not be added to the `permitAll` list in
+`SecurityConfig` unless it serves only public catalog data.
+
+## Caching
+
+`CatalogCache` holds requirement groups and the prerequisite graph for the life
+of the process, so a migration that changes them takes effect on restart.
+`PlanCache` keys plans by every planner input; if you add a new input to plan
+generation (a preference, a transcript field), add it to the key in
+`PlanGeneratorService.generatePlan` or students will get stale plans.
