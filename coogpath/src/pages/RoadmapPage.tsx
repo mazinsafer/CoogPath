@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { TermCard } from "../components/roadmap/TermCard";
+import { AdvisorChat } from "../components/roadmap/AdvisorChat";
 import { TermSelect } from "../components/TermSelect";
 import { IconDownload } from "../components/Icons";
 import { Alert } from "../components/ui/Alert";
@@ -155,6 +156,14 @@ function Roadmap({ profile }: { profile: StudentProfile }) {
             />
           ) : (
             data.terms.map((term, i) => <TermCard key={term.termLabel} term={term} index={i} />)
+          )}
+
+          {!plan.loading && (
+            <AdvisorChat
+              key={`${profile.studentId}-${options.mode}-${options.start.season}-${options.start.year}-${options.includeSummer}`}
+              studentId={profile.studentId}
+              options={options}
+            />
           )}
 
           <p className="text-xs text-zinc-500">

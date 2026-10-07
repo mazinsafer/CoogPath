@@ -28,6 +28,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final boolean trustForwardedFor;
     private final RateLimiter authLimiter;
     private final RateLimiter planLimiter;
+    private final RateLimiter advisorLimiter;
     private final RateLimiter defaultLimiter;
 
     public RateLimitFilter(
@@ -35,11 +36,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${app.rate-limit.trust-forwarded-for:false}") boolean trustForwardedFor,
             @Value("${app.rate-limit.auth-per-minute:10}") int authPerMinute,
             @Value("${app.rate-limit.plan-per-minute:30}") int planPerMinute,
+            @Value("${app.rate-limit.advisor-per-minute:10}") int advisorPerMinute,
             @Value("${app.rate-limit.default-per-minute:300}") int defaultPerMinute) {
         this.enabled = enabled;
         this.trustForwardedFor = trustForwardedFor;
         this.authLimiter = new RateLimiter(authPerMinute);
         this.planLimiter = new RateLimiter(planPerMinute);
+        this.advisorLimiter = new RateLimiter(advisorPerMinute);
         this.defaultLimiter = new RateLimiter(defaultPerMinute);
     }
 
@@ -72,6 +75,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/api/plan/generate/")) {
             return planLimiter;
+        }
+        if (isPost && path.startsWith("/api/advisor/")) {
+            return advisorLimiter;
         }
         return defaultLimiter;
     }

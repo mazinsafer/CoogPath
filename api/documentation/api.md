@@ -42,6 +42,9 @@ can be set as environment variables instead.
 | `CORS_ALLOWED_ORIGINS` | `*` | Comma-separated origin patterns allowed to call `/api/**` |
 | `SHOW_SQL` | `false` | Log Hibernate SQL (local profile only) |
 | `SERVER_PORT` | `8080` | HTTP port |
+| `OPENAI_API_KEY` | empty | Enables the roadmap advisor; set only on the API server |
+| `ADVISOR_MODEL` | `gpt-4o-mini` | Model used for advisor queries and answers |
+| `ADVISOR_RATE_LIMIT` | `10` | Advisor requests per minute per client IP |
 
 Profiles:
 
@@ -309,6 +312,30 @@ prerequisite chain that never resolves). The algorithm is described in
 Stores a generated plan (body: the `PlanResult` above) as a roadmap snapshot.
 Returns `201` with no body. The current frontend doesn't call it.
 
+### Roadmap advisor
+
+#### `POST /api/advisor/{studentId}`
+
+Requires the student's bearer token. Rebuilds the plan with the same options
+shown on the roadmap, combines it with degree requirement progress in a
+per-request in-memory DuckDB database, and answers from a read-only query.
+The optional `history` contains up to the last six visible chat messages.
+
+```json
+{
+  "question": "Which courses are in my next term?",
+  "mode": "fastest",
+  "startSeason": "FALL",
+  "startYear": 2027,
+  "includeSummer": false,
+  "history": [{ "role": "user", "content": "How many terms remain?" }]
+}
+```
+
+Response: `{ "answer": "..." }`. The endpoint returns `503` if
+`OPENAI_API_KEY` is unset and `502` when the model or query fails. The advisor
+does not know course availability, registration holds, or university policy.
+
 ### Shared shapes
 
 #### AuthResponse
@@ -366,6 +393,7 @@ Railway settings:
   `JWT_SECRET` (random, 32+ characters: `openssl rand -base64 48`)
 - Optional: `CACHE_TYPE=redis` plus `REDIS_URL` to share cached plans across
   instances and restarts; `JWT_TTL` (default `7d`)
+- Advisor: `OPENAI_API_KEY` on Railway; never put it in `VITE_*` variables.
 - Health check path: `/api/health`
 
 New migrations run automatically when the service starts. Back up the database
@@ -379,7 +407,7 @@ before deploying a migration that changes existing rows.
   every sign-in ends on restart). `@OwnStudentOnly` limits each student route
   to the token's student. There is no server-side logout; tokens last `JWT_TTL`.
 - Requests are rate limited per client IP: 10/min for login and registration,
-  30/min for plan generation, 300/min otherwise. Over the limit returns `429`
+  30/min for plan generation, 10/min for advisor questions, 300/min otherwise. Over the limit returns `429`
   with `Retry-After`. Limits are per API instance.
 - Generated plans are cached (Caffeine in-process, or Redis with
   `CACHE_TYPE=redis`) under a hash of the catalog version, the student's
