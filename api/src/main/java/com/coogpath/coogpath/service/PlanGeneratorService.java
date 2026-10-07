@@ -185,6 +185,7 @@ public class PlanGeneratorService
         // Phase 2: consolidate a short trailing term (<= 2 courses)
         int termCreditCap = isFastest ? FASTEST_TERM_CREDITS : BALANCED_TERM_CREDITS;
         consolidateTrailingRunts(termBuckets, termSeasons, termYears, graph, termCreditCap);
+        spreadCoreCourses(termBuckets, termSeasons, completedCourses.keySet(), requiredSubject, graph, termCreditCap);
 
         // Phase 3: convert buckets to DTOs
         for (int i = 0; i < termBuckets.size(); i++)
@@ -287,6 +288,80 @@ public class PlanGeneratorService
                 lastCredits += toMove.getCredits();
             }
         }
+    }
+
+    /** Spread major courses into later fall/spring terms and bring general education forward. */
+    private void spreadCoreCourses(List<List<Course>> buckets, List<String> seasons, Set<Long> completedIds,
+                                   String coreSubject, PrerequisiteGraph graph, int termCreditCap) {
+        for (int desired = 1; desired <= 2; desired++) {
+            for (int target = buckets.size() - 1; target >= 0; target--) {
+                if ("SUMMER".equals(seasons.get(target)) || countCore(buckets.get(target), coreSubject) >= desired) continue;
+                for (int donor = target - 1; donor >= 0; donor--) {
+                    if ("SUMMER".equals(seasons.get(donor)) || countCore(buckets.get(donor), coreSubject) <= desired) continue;
+                    if (moveCoreToLaterTerm(buckets, donor, target, completedIds, coreSubject, graph, termCreditCap)) break;
+                }
+            }
+        }
+    }
+
+    private boolean moveCoreToLaterTerm(List<List<Course>> buckets, int donorIndex, int targetIndex,
+                                        Set<Long> completedIds, String coreSubject, PrerequisiteGraph graph, int cap) {
+        List<Course> donor = buckets.get(donorIndex);
+        List<Course> target = buckets.get(targetIndex);
+        int donorCredits = donor.stream().mapToInt(Course::getCredits).sum();
+        int targetCredits = target.stream().mapToInt(Course::getCredits).sum();
+
+        Set<Long> beforeDonor = new HashSet<>(completedIds);
+        for (int i = 0; i < donorIndex; i++) {
+            for (Course course : buckets.get(i)) beforeDonor.add(course.getCourseId());
+        }
+
+        List<Course> movableCore = donor.stream()
+                .filter(course -> coreSubject.equals(course.getSubject()))
+                .sorted((a, b) -> Boolean.compare(!a.getNumber().contains("ELEC"), !b.getNumber().contains("ELEC")))
+                .toList();
+        List<Course> exchange = target.stream()
+                .filter(course -> !coreSubject.equals(course.getSubject()))
+                .sorted((a, b) -> Integer.compare(generalEducationPriority(a), generalEducationPriority(b)))
+                .toList();
+
+        for (Course core : movableCore) {
+            boolean neededEarlier = false;
+            for (int i = donorIndex + 1; i <= targetIndex && !neededEarlier; i++) {
+                neededEarlier = buckets.get(i).stream()
+                        .anyMatch(course -> graph.prerequisiteIds(course.getCourseId()).contains(core.getCourseId()));
+            }
+            if (neededEarlier) continue;
+
+            for (Course other : exchange) {
+                if (!graph.isUnlocked(other.getCourseId(), beforeDonor)) continue;
+                if (donorCredits - core.getCredits() + other.getCredits() > cap
+                        || targetCredits - other.getCredits() + core.getCredits() > cap) continue;
+                donor.remove(core);
+                target.remove(other);
+                donor.add(other);
+                target.add(core);
+                return true;
+            }
+            if (targetCredits + core.getCredits() <= cap) {
+                donor.remove(core);
+                target.add(core);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static long countCore(List<Course> courses, String subject) {
+        return courses.stream().filter(course -> subject.equals(course.getSubject())).count();
+    }
+
+    private static int generalEducationPriority(Course course) {
+        return switch (course.getSubject()) {
+            case "ENGL", "HIST", "GOVT", "MATH", "NSM", "CORE" -> 0;
+            case "ELEC" -> 2;
+            default -> 1;
+        };
     }
 
     private boolean isStem(Course c) {

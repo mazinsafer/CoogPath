@@ -3,7 +3,7 @@ import { PageHeader } from "../components/layout/PageHeader";
 import { TermCard } from "../components/roadmap/TermCard";
 import { AdvisorChat } from "../components/roadmap/AdvisorChat";
 import { TermSelect } from "../components/TermSelect";
-import { IconDownload } from "../components/Icons";
+import { IconChat, IconDownload } from "../components/Icons";
 import { Alert } from "../components/ui/Alert";
 import { Button, ButtonLink } from "../components/ui/Button";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
@@ -48,6 +48,7 @@ function Roadmap({ profile }: { profile: StudentProfile }) {
     includeSummer: profile.includeSummer,
   }));
   const [exporting, setExporting] = useState(false);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
   const plan = usePlan(profile.studentId, options);
   const completed = useCompletedCourseIds(profile.studentId);
 
@@ -135,9 +136,37 @@ function Roadmap({ profile }: { profile: StudentProfile }) {
               { label: "Credits remaining", value: credits },
               { label: "Terms remaining", value: data.terms.length, detail: options.includeSummer ? "Including summers" : "Fall and spring" },
               { label: "Courses remaining", value: courseCount },
-              { label: "Estimated graduation", value: lastTerm ? formatTermLabel(lastTerm.termLabel) : "—" },
+              {
+                label: "Estimated graduation",
+                value: (
+                  <span className="flex items-center justify-between gap-2">
+                    <span>{lastTerm ? formatTermLabel(lastTerm.termLabel) : "—"}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAdvisorOpen((open) => !open)}
+                      aria-label={advisorOpen ? "Close AI advisor" : "Open AI advisor"}
+                      aria-expanded={advisorOpen}
+                      aria-controls="roadmap-advisor"
+                      title={advisorOpen ? "Close AI advisor" : "Ask AI advisor"}
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-brand-600 bg-brand-600 text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+                    >
+                      <IconChat className="size-5" />
+                    </button>
+                  </span>
+                ),
+              },
             ]}
           />
+
+          {!plan.loading && (
+            <div id="roadmap-advisor" hidden={!advisorOpen} className="ml-auto w-full lg:max-w-2xl">
+              <AdvisorChat
+                key={`${profile.studentId}-${options.mode}-${options.start.season}-${options.start.year}-${options.includeSummer}`}
+                studentId={profile.studentId}
+                options={options}
+              />
+            </div>
+          )}
 
           {data.blockers.length > 0 && (
             <Alert tone="warning" title={`${pluralize(data.blockers.length, "course")} couldn't be scheduled`}>
@@ -156,14 +185,6 @@ function Roadmap({ profile }: { profile: StudentProfile }) {
             />
           ) : (
             data.terms.map((term, i) => <TermCard key={term.termLabel} term={term} index={i} />)
-          )}
-
-          {!plan.loading && (
-            <AdvisorChat
-              key={`${profile.studentId}-${options.mode}-${options.start.season}-${options.start.year}-${options.includeSummer}`}
-              studentId={profile.studentId}
-              options={options}
-            />
           )}
 
           <p className="text-xs text-zinc-500">

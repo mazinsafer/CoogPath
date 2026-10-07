@@ -36,7 +36,7 @@ export function AdvisorChat({ studentId, options }: { studentId: number; options
         ) : (
           <div className="max-h-96 space-y-3 overflow-y-auto" role="log" aria-label="Advisor conversation" aria-live="polite">
             {messages.map((message, index) => (
-              <div key={index} className={`rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${message.role === "user" ? "ml-8 bg-zinc-100 text-zinc-900" : "mr-8 border border-zinc-200 bg-white text-zinc-700"}`}>
+              <div key={index} className={`rounded-lg px-4 py-3 text-sm whitespace-pre-wrap ${message.role === "user" ? "ml-8 bg-zinc-100 text-zinc-900" : "mr-8 border border-zinc-200 bg-surface text-zinc-700"}`}>
                 <span className="mb-1 block text-xs font-semibold text-zinc-500">{message.role === "user" ? "You" : "Advisor"}</span>
                 {message.content}
               </div>
@@ -52,7 +52,7 @@ export function AdvisorChat({ studentId, options }: { studentId: number; options
             maxLength={1000}
             rows={2}
             placeholder="Ask a question about your roadmap…"
-            className="min-h-16 flex-1 resize-y rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
+            className="min-h-16 flex-1 resize-y rounded-md border border-zinc-300 bg-surface px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-600/20"
           />
           <Button type="submit" loading={busy} disabled={!question.trim()}>Ask advisor</Button>
         </form>

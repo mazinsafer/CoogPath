@@ -49,7 +49,12 @@ produce the same plan, which lets you diff output before and after a change.
    into the previous fall/spring term when they don't depend on it and the
    merged term stays within the mode's cap (18 or 16). Otherwise move
    independent low-credit courses forward to even out the two terms.
-6. **Leftovers** become `unmetRequirements` and `blockers` (shown as a warning
+6. **Major-course spread.** Move independent COSC/FINA courses from earlier
+   fall/spring terms into later ones with fewer than 1–2 major courses. Swap
+   later general education courses forward when prerequisites and credit caps
+   allow. A term can still have no FINA when finance prerequisites have not
+   been completed or there are fewer FINA courses than terms.
+7. **Leftovers** become `unmetRequirements` and `blockers` (shown as a warning
    on the roadmap).
 
 ## Changing it

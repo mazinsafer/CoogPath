@@ -2,6 +2,7 @@ package com.coogpath.coogpath.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.coogpath.coogpath.dto.PlanResult;
 import com.coogpath.coogpath.dto.PlannedTerm;
@@ -42,6 +43,9 @@ class AdvisorServiceTest {
 
     @Test
     void rejectsUnsafeStatements() {
+        assertEquals("Return JSON only.\nQuestion", AdvisorService.modelInput("Question", true));
+        assertEquals("SELECT COUNT(*) FROM roadmap_terms", AdvisorService.normalizeSql("SELECT COUNT(*) FROM roadmap_terms;"));
+        assertTrue(AdvisorService.safeSqlOrOverview("DROP TABLE roadmap_terms").contains("FROM roadmap_terms"));
         assertThrows(ResponseStatusException.class, () -> AdvisorService.validateSql("DROP TABLE roadmap_courses"));
         assertThrows(ResponseStatusException.class, () -> AdvisorService.validateSql("SELECT * FROM roadmap_courses; DELETE FROM roadmap_courses"));
         assertThrows(ResponseStatusException.class, () -> AdvisorService.validateSql("SELECT * FROM read_csv('/etc/passwd')"));
