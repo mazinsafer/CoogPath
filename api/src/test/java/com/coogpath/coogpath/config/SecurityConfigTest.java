@@ -18,15 +18,17 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.coogpath.coogpath.controller.AuthController;
+import com.coogpath.coogpath.controller.AdvisorController;
 import com.coogpath.coogpath.controller.StudentController;
 import com.coogpath.coogpath.dto.StudentProfile;
 import com.coogpath.coogpath.model.Student;
 import com.coogpath.coogpath.repository.StudentRepository;
 import com.coogpath.coogpath.service.StudentService;
+import com.coogpath.coogpath.service.AdvisorService;
 import com.coogpath.coogpath.service.TokenService;
 
 @WebMvcTest(
-        controllers = { StudentController.class, AuthController.class },
+        controllers = { StudentController.class, AuthController.class, AdvisorController.class },
         properties = "app.rate-limit.auth-per-minute=3")
 @Import({ SecurityConfig.class, JwtConfig.class, TokenService.class })
 class SecurityConfigTest {
@@ -35,6 +37,7 @@ class SecurityConfigTest {
     @Autowired private TokenService tokenService;
 
     @MockitoBean private StudentService studentService;
+    @MockitoBean private AdvisorService advisorService;
     @MockitoBean private StudentRepository studentRepository;
 
     private static Student student(long id) {
@@ -76,6 +79,16 @@ class SecurityConfigTest {
         mvc.perform(get("/api/students/2").header("Authorization", bearer(1)))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/students/2/transcript").header("Authorization", bearer(1)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void advisor_requires_own_student_token() throws Exception {
+        String body = "{\"question\":\"What is next?\"}";
+        mvc.perform(post("/api/advisor/1").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/advisor/2").header("Authorization", bearer(1))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
     }
 

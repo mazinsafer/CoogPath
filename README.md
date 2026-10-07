@@ -122,7 +122,7 @@ and [`.agents/skills/flyway-migration-safety`](.agents/skills/flyway-migration-s
 | --- | --- | --- |
 | Root directory | `api` | `coogpath` |
 | Build | `Dockerfile` (runs with the `prod` profile) | Vite preset, `npm run build`, output `dist` |
-| Environment | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS` | `VITE_API_URL` (API origin) |
+| Environment | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `CORS_ALLOWED_ORIGINS`, `OPENAI_API_KEY` (advisor) | `VITE_API_URL` (API origin) |
 
 New migrations apply automatically when the API starts. Back up the
 production database before deploying a migration that changes existing rows.

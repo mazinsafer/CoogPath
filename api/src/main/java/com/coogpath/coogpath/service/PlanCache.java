@@ -32,7 +32,7 @@ public class PlanCache {
     public static final String CACHE_NAME = "plans";
 
     private static final Logger log = LoggerFactory.getLogger(PlanCache.class);
-    private static final String KEY_FORMAT_VERSION = "v1";
+    private static final String KEY_FORMAT_VERSION = "v2";
 
     private final Cache cache;
     private final ObjectProvider<Flyway> flyway;

@@ -27,6 +27,13 @@ export const IconRoadmap = (p: IconProps) => (
   </Icon>
 );
 
+export const IconChat = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5 8.4 8.4 0 0 1-3.1-.6L4 20l1.6-5.4a8.4 8.4 0 0 1-.6-3.1A7.5 7.5 0 0 1 12.5 4 7.5 7.5 0 0 1 20 11.5Z" />
+    <path d="M9 11.5h7M9 14.5h4" />
+  </Icon>
+);
+
 export const IconChecklist = (p: IconProps) => (
   <Icon {...p}>
     <path d="m4 6 1.5 1.5L8 5M4 12l1.5 1.5L8 11M4 18l1.5 1.5L8 17" />

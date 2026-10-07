@@ -28,7 +28,7 @@ function errorMessage(data: unknown, text: string, status: number): string {
   if (data && typeof data === "object" && "error" in data && typeof data.error === "string") {
     return data.error;
   }
-  if (data === undefined && text && text.length < 200) {
+  if (status < 500 && data === undefined && text && text.length < 200) {
     return text;
   }
   return status >= 500 ? "Something went wrong on our end. Please try again." : `Request failed (${status}).`;
