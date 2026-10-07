@@ -7,14 +7,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.coogpath.coogpath.dto.PlanResult;
 import com.coogpath.coogpath.dto.PlannedTerm;
 import com.coogpath.coogpath.dto.RequirementGroupProgress;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.web.server.ResponseStatusException;
 
 class AdvisorServiceTest {
+    @TempDir Path temporaryDirectory;
+
+    @Test
+    void readsAdvisorKeyAddedToLocalEnvAfterStartup() throws Exception {
+        Path envFile = temporaryDirectory.resolve(".env");
+        assertEquals("", AdvisorService.readLocalApiKey(envFile));
+        Files.writeString(envFile, "OPENAI_API_KEY= test-key\n");
+        assertEquals("test-key", AdvisorService.readLocalApiKey(envFile));
+        Files.writeString(envFile, "OPENAI_API_KEY=replacement-key\n");
+        assertEquals("replacement-key", AdvisorService.readLocalApiKey(envFile));
+    }
+
     @Test
     void studentPlanAndRequirementsCanBeQueriedTogether() throws Exception {
         PlanResult plan = new PlanResult(
